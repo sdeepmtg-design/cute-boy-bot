@@ -9,14 +9,9 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Конфигурация
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 YANDEX_API_KEY = os.environ.get('YANDEX_API_KEY')
 YANDEX_FOLDER_ID = os.environ.get('YANDEX_FOLDER_ID')
-
-# Проверяем переменные
-logger.info(f"🔧 Config check - Yandex API Key: {'SET' if YANDEX_API_KEY else 'NOT SET'}")
-logger.info(f"🔧 Config check - Yandex Folder ID: {'SET' if YANDEX_FOLDER_ID else 'NOT SET'}")
 
 if not BOT_TOKEN:
     bot = None
@@ -28,57 +23,46 @@ else:
 
 class CuteBoyBot:
     def yandex_tts(self, text):
-        """Яндекс TTS"""
+        """Яндекс TTS с разными голосами"""
         try:
             if not YANDEX_API_KEY or not YANDEX_FOLDER_ID:
-                logger.error("❌ Yandex credentials missing")
                 return None
             
             clean_text = text.replace("🎤", "").replace("🤗", "").replace("💫", "").replace("😊", "").strip()
-            logger.info(f"🔊 Yandex TTS: {clean_text}")
             
-            url = "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize"
-            headers = {"Authorization": f"Api-Key {YANDEX_API_KEY}"}
+            # Пробуем разные мужские голоса
+            male_voices = ['filipp', 'ermil', 'alexander']
             
-            data = {
-                "text": clean_text,
-                "lang": "ru-RU",
-                "voice": "filipp",
-                "emotion": "good",
-                "speed": "1.0",
-                "format": "mp3",
-                "folderId": YANDEX_FOLDER_ID
-            }
+            for voice in male_voices:
+                logger.info(f"🔊 Trying Yandex voice: {voice}")
+                
+                url = "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize"
+                headers = {"Authorization": f"Api-Key {YANDEX_API_KEY}"}
+                
+                data = {
+                    "text": clean_text,
+                    "lang": "ru-RU",
+                    "voice": voice,
+                    "emotion": "good", 
+                    "speed": "1.0",
+                    "format": "mp3",
+                    "folderId": YANDEX_FOLDER_ID
+                }
+                
+                response = requests.post(url, headers=headers, data=data, timeout=10)
+                
+                if response.status_code == 200:
+                    logger.info(f"✅ Yandex TTS success with voice: {voice}")
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                        tmp_file.write(response.content)
+                        return tmp_file.name
+                else:
+                    logger.warning(f"❌ Voice {voice} failed: {response.status_code}")
             
-            response = requests.post(url, headers=headers, data=data, timeout=30)
-            
-            if response.status_code == 200:
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                    tmp_file.write(response.content)
-                    logger.info(f"✅ Yandex TTS success")
-                    return tmp_file.name
-            else:
-                logger.error(f"❌ Yandex TTS error: {response.status_code}")
-                return None
+            return None
                 
         except Exception as e:
             logger.error(f"❌ Yandex TTS exception: {e}")
-            return None
-
-    def gtts_tts(self, text):
-        """Google TTS fallback"""
-        try:
-            from gtts import gTTS
-            clean_text = text.replace("🎤", "").replace("🤗", "").replace("💫", "").replace("😊", "").strip()
-            tts = gTTS(text=clean_text, lang='ru', slow=False)
-            
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                tts.save(tmp_file.name)
-                logger.info("✅ Google TTS success")
-                return tmp_file.name
-                
-        except Exception as e:
-            logger.error(f"❌ Google TTS failed: {e}")
             return None
 
     def send_voice_message(self, chat_id, text):
@@ -87,26 +71,21 @@ class CuteBoyBot:
             logger.info(f"🎤 Sending voice: {text}")
             bot.send_chat_action(chat_id=chat_id, action='record_voice')
             
-            # Сначала пробуем Яндекс
             audio_file = self.yandex_tts(text)
-            
-            # Если Яндекс не сработал, пробуем Google
-            if not audio_file:
-                logger.info("🔄 Falling back to Google TTS")
-                audio_file = self.gtts_tts(text)
             
             if audio_file and os.path.exists(audio_file):
                 with open(audio_file, 'rb') as audio:
                     bot.send_voice(chat_id=chat_id, voice=audio, caption="🎤 Алексей")
-                logger.info("✅ Voice sent!")
+                logger.info("✅ Yandex voice sent!")
                 os.unlink(audio_file)
+                return True
             else:
-                logger.error("❌ All TTS failed")
-                bot.send_message(chat_id=chat_id, text=f"🎤 {text}")
+                logger.error("❌ Yandex TTS failed completely")
+                return False
                 
         except Exception as e:
             logger.error(f"❌ Voice error: {e}")
-            bot.send_message(chat_id=chat_id, text=text)
+            return False
 
     def process_message(self, update):
         try:
@@ -116,12 +95,15 @@ class CuteBoyBot:
             logger.info(f"📩 Message: {user_message}")
             
             if user_message in ['голос', 'voice', 'тест']:
-                test_text = "Привет! Я Алексей. Это тестовое голосовое сообщение через Яндекс SpeechKit!"
-                self.send_voice_message(chat_id, test_text)
+                test_text = "Привет! Я Алексей. Это тестовое голосовое сообщение!"
+                success = self.send_voice_message(chat_id, test_text)
+                
+                if not success:
+                    bot.send_message(chat_id=chat_id, text="❌ Не удалось отправить голосовое. Проверьте настройки Яндекс.")
                 return
             
             if bot:
-                bot.send_message(chat_id=chat_id, text="Напиши 'голос' для теста голосового сообщения! 🎤")
+                bot.send_message(chat_id=chat_id, text="Напиши 'голос' для теста!")
 
         except Exception as e:
             logger.error(f"Error: {e}")
@@ -141,13 +123,6 @@ def webhook():
     except Exception as e:
         logger.error(f"Webhook error: {e}")
         return jsonify({"status": "error"}), 400
-
-@app.route('/')
-def home():
-    return jsonify({
-        "status": "healthy", 
-        "yandex_configured": bool(YANDEX_API_KEY and YANDEX_FOLDER_ID)
-    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
