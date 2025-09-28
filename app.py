@@ -4,15 +4,19 @@ import requests
 import logging
 import random
 import tempfile
-from gtts import gTTS
-import io
+import uuid
+import hashlib
+import time
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Конфигурация
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+YANDEX_API_KEY = os.environ.get('YANDEX_API_KEY')  # Ключ от Яндекс Cloud
+YANDEX_FOLDER_ID = os.environ.get('YANDEX_FOLDER_ID')  # Folder ID из Яндекс Cloud
 
 if not BOT_TOKEN:
     bot = None
@@ -34,45 +38,65 @@ class CuteBoyBot:
         voice_triggers = ['голос', 'voice', 'говори', 'озвучь', 'тест голос']
         return any(trigger in message_lower for trigger in voice_triggers)
 
-    def text_to_speech_improved(self, text):
-        """Улучшенный TTS с попыткой мужского голоса"""
+    def yandex_text_to_speech(self, text):
+        """Используем Яндекс SpeechKit для качественного мужского голоса"""
         try:
-            # Очищаем текст для TTS
+            if not YANDEX_API_KEY or not YANDEX_FOLDER_ID:
+                logger.error("❌ Yandex credentials not set")
+                return None
+            
+            # Очищаем текст
             clean_text = text.replace("🎤", "").replace("🤗", "").replace("💫", "").replace("😊", "").replace("🎯", "").strip()
             
-            logger.info(f"🔊 TTS converting: {clean_text}")
+            logger.info(f"🔊 Yandex TTS converting: {clean_text}")
             
-            # Вариант 1: Пробуем разные языки и настройки
-            # Для русского мужского голоса можно попробовать:
-            tts = gTTS(
-                text=clean_text, 
-                lang='ru',
-                slow=False,  # Немного ускорим
-                lang_check=False  # Отключаем проверку языка
-            )
+            # URL для Яндекс SpeechKit
+            url = "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize"
             
-            # Альтернатива: пробуем английский с русским текстом (иногда лучше)
-            # tts = gTTS(text=clean_text, lang='en', slow=False)
+            headers = {
+                "Authorization": f"Api-Key {YANDEX_API_KEY}",
+            }
             
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-                tts.save(tmp_file.name)
-                logger.info(f"🔊 TTS audio saved")
-                return tmp_file.name
+            # Параметры для мужского голоса
+            data = {
+                "text": clean_text,
+                "lang": "ru-RU",
+                "voice": "filipp",  # Мужские голоса: filipp, ermil, alexander
+                "emotion": "good",  # good, neutral, evil
+                "speed": "1.0",
+                "format": "mp3",
+                "folderId": YANDEX_FOLDER_ID
+            }
+            
+            response = requests.post(url, headers=headers, data=data, timeout=30)
+            
+            if response.status_code == 200:
+                # Сохраняем аудио во временный файл
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                    tmp_file.write(response.content)
+                    logger.info(f"🔊 Yandex TTS success: {len(response.content)} bytes")
+                    return tmp_file.name
+            else:
+                logger.error(f"❌ Yandex TTS error: {response.status_code} - {response.text}")
+                return None
                 
         except Exception as e:
-            logger.error(f"❌ TTS ERROR: {e}")
+            logger.error(f"❌ Yandex TTS exception: {e}")
             return None
 
-    def send_voice_with_fallback(self, chat_id, text):
-        """Отправка голосового с улучшенным TTS"""
+    def send_voice_with_yandex(self, chat_id, text):
+        """Отправка голосового с Яндекс TTS"""
         try:
-            logger.info(f"🎤 Sending voice: {text}")
+            logger.info(f"🎤 Sending Yandex voice: {text}")
             bot.send_chat_action(chat_id=chat_id, action='record_voice')
             
-            # Пробуем улучшенный TTS
-            audio_file = self.text_to_speech_improved(text)
+            # Используем Яндекс TTS
+            audio_file = self.yandex_text_to_speech(text)
             
             if audio_file and os.path.exists(audio_file):
+                file_size = os.path.getsize(audio_file)
+                logger.info(f"🔊 Yandex audio file ready: {file_size} bytes")
+                
                 # Отправляем голосовое
                 with open(audio_file, 'rb') as audio:
                     bot.send_voice(
@@ -80,18 +104,39 @@ class CuteBoyBot:
                         voice=audio,
                         caption="🎤 Алексей"
                     )
-                logger.info("✅ Voice sent!")
+                logger.info("✅ Yandex voice sent successfully!")
                 os.unlink(audio_file)
             else:
-                # Fallback: отправляем текстом с объяснением
-                bot.send_message(
-                    chat_id=chat_id, 
-                    text=f"🎤 {text}\n\n(К сожалению, голосовой движок временно недоступен 😔)"
-                )
+                # Fallback на Google TTS
+                logger.warning("🔄 Yandex TTS failed, falling back to gTTS")
+                self.send_voice_with_gtts(chat_id, text)
                 
         except Exception as e:
-            logger.error(f"❌ Voice error: {e}")
-            bot.send_message(chat_id=chat_id, text=text)
+            logger.error(f"❌ Voice sending error: {e}")
+            bot.send_message(chat_id=chat_id, text=f"🎤 {text}")
+
+    def send_voice_with_gtts(self, chat_id, text):
+        """Fallback на Google TTS"""
+        try:
+            from gtts import gTTS
+            
+            clean_text = text.replace("🎤", "").replace("🤗", "").replace("💫", "").replace("😊", "").replace("🎯", "").strip()
+            tts = gTTS(text=clean_text, lang='ru', slow=False)
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                tts.save(tmp_file.name)
+                
+                with open(tmp_file.name, 'rb') as audio:
+                    bot.send_voice(
+                        chat_id=chat_id,
+                        voice=audio,
+                        caption="🎤 Алексей (резервный голос)"
+                    )
+                os.unlink(tmp_file.name)
+                
+        except Exception as e:
+            logger.error(f"❌ gTTS fallback failed: {e}")
+            bot.send_message(chat_id=chat_id, text=f"🎤 {text}")
 
     def process_message(self, update):
         try:
@@ -103,22 +148,28 @@ class CuteBoyBot:
             # Тест голосовых
             if self.should_send_voice(user_message):
                 test_messages = [
-                    "Привет! Я Алексей, рад тебя слышать",
-                    "Здравствуй! Как твои дела?",
-                    "Приветствую тебя! Очень приятно познакомиться",
-                    "Добрый день! Надеюсь, у тебя все хорошо"
+                    "Привет! Я Алексей, очень рад тебя слышать",
+                    "Здравствуй! Как твои дела сегодня?",
+                    "Приветствую! Очень приятно с тобой познакомиться",
+                    "Добрый день! Надеюсь, у тебя прекрасное настроение"
                 ]
                 test_text = random.choice(test_messages)
-                self.send_voice_with_fallback(chat_id, test_text)
+                
+                if YANDEX_API_KEY and YANDEX_FOLDER_ID:
+                    logger.info("🚀 Using Yandex TTS")
+                    self.send_voice_with_yandex(chat_id, test_text)
+                else:
+                    logger.info("🔄 Yandex not configured, using gTTS")
+                    self.send_voice_with_gtts(chat_id, test_text)
                 return
             
             # Обычные сообщения
             if bot:
                 sweet_name = self.get_sweet_name()
                 responses = [
-                    f"Привет, {sweet_name}! Как твои дела? 🤗",
-                    f"Здравствуй, {sweet_name}! Рад тебя видеть! 💫",
-                    f"Привет, {sweet_name}! Что нового? 😊"
+                    f"Привет, {sweet_name}! 🤗",
+                    f"Здравствуй, {sweet_name}! 💫",
+                    f"Привет, {sweet_name}! 😊"
                 ]
                 bot.send_message(chat_id=chat_id, text=random.choice(responses))
 
@@ -140,6 +191,14 @@ def webhook():
     except Exception as e:
         logger.error(f"Webhook error: {e}")
         return jsonify({"status": "error"}), 400
+
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "healthy",
+        "tts_engine": "Yandex SpeechKit" if YANDEX_API_KEY else "Google TTS",
+        "features": ["real_voice_messages", "yandex_tts"]
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
