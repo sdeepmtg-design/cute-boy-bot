@@ -3,6 +3,8 @@ import os
 import requests
 import logging
 import random
+import tempfile
+from gtts import gTTS
 import io
 
 app = Flask(__name__)
@@ -63,13 +65,13 @@ class CuteBoyBot:
         """Определяем, когда отправлять голосовое сообщение"""
         message_lower = message.lower().strip()
         
-        # РАСШИРЕННЫЙ СПИСОК ТРИГГЕРОВ - отправляем голосовое в 50% случаев
+        # Отправляем голосовое в 50% случаев для подходящих сообщений
         voice_triggers = [
             'привет', 'hello', 'hi', 'хай', 'ку',
             'как дела', 'как ты', 'что делаешь',
             'спокойной ночи', 'доброй ночи', 'спок',
             'скучаю', 'соскучилась', 'miss you',
-            'голос', 'voice', 'говори'
+            'голос', 'voice', 'говори', 'озвучь'
         ]
         
         has_trigger = any(trigger in message_lower for trigger in voice_triggers)
@@ -137,6 +139,27 @@ class CuteBoyBot:
             sweet_name = self.get_sweet_name()
             return f"Ой, {sweet_name}, что-то я растерялся... Давай попробуем ещё раз?"
 
+    def text_to_speech(self, text):
+        """Преобразует текст в речь и возвращает аудиофайл"""
+        try:
+            # Очищаем текст от эмодзи для TTS
+            clean_text = text.replace("🎤", "").replace("🤗", "").replace("💫", "").replace("😊", "").replace("🎯", "").strip()
+            
+            logger.info(f"🔊 TTS converting: {clean_text}")
+            
+            # Создаем TTS на русском с мужским голосом
+            tts = gTTS(text=clean_text, lang='ru', slow=False)
+            
+            # Сохраняем во временный файл
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                tts.save(tmp_file.name)
+                logger.info(f"🔊 TTS audio saved to: {tmp_file.name}")
+                return tmp_file.name
+                
+        except Exception as e:
+            logger.error(f"Error in TTS: {e}")
+            return None
+
     def send_real_voice_message(self, chat_id, text):
         """Отправка настоящего голосового сообщения"""
         try:
@@ -145,22 +168,30 @@ class CuteBoyBot:
             # Показываем действие записи голоса
             bot.send_chat_action(chat_id=chat_id, action='record_voice')
             
-            # Вариант 1: Используем текстовое сообщение как временное решение
-            # (настоящие голосовые требуют аудиофайл или TTS API)
+            # Преобразуем текст в речь
+            audio_file = self.text_to_speech(text)
             
-            # Создаем короткую версию текста для голосового
-            voice_text = text.replace("🎤", "").replace("🤗", "").replace("💫", "").replace("😊", "").strip()
-            
-            # Отправляем текстовое сообщение с пометкой
-            message = f"🎤 {voice_text}\n\n(Вот бы отправить это голосом! 😊)"
-            bot.send_message(chat_id=chat_id, text=message)
-            
-            logger.info("🎤 Voice-like message sent")
-            
+            if audio_file:
+                # Отправляем голосовое сообщение
+                with open(audio_file, 'rb') as audio:
+                    bot.send_voice(
+                        chat_id=chat_id,
+                        voice=audio,
+                        caption="🎤 От Алексея"
+                    )
+                logger.info("🎤 REAL VOICE MESSAGE SENT SUCCESSFULLY!")
+                
+                # Удаляем временный файл
+                os.unlink(audio_file)
+            else:
+                # Если TTS не сработал, отправляем текстом
+                logger.error("TTS failed, sending text instead")
+                bot.send_message(chat_id=chat_id, text=f"🎤 {text}")
+                
         except Exception as e:
-            logger.error(f"Error sending voice message: {e}")
+            logger.error(f"Error sending real voice message: {e}")
             # Если не получилось, отправляем обычным текстом
-            bot.send_message(chat_id=chat_id, text=text)
+            bot.send_message(chat_id=chat_id, text=f"🎤 {text}")
 
     def process_message(self, update):
         """Обработка входящего сообщения"""
@@ -174,15 +205,17 @@ class CuteBoyBot:
             # ПРИНУДИТЕЛЬНЫЕ КОМАНДЫ ДЛЯ ТЕСТА ГОЛОСОВЫХ
             force_voice_commands = [
                 'голос', 'voice', 'говори', 'озвучь', 
-                'голосовое', 'можно голосовое', 'хочу голосовое'
+                'голосовое', 'можно голосовое', 'хочу голосовое',
+                'тест голос'
             ]
             
             if user_message.lower().strip() in force_voice_commands:
                 test_responses = [
-                    "Привет красавица! Это тестовое голосовое сообщение!",
-                    "Как слышно? Это я, твой виртуальный друг!",
+                    "Привет красавица! Это настоящее голосовое сообщение!",
+                    "Как слышно? Это я, твой виртуальный друг Алексей!",
                     "Рад слышать тебя! Вот мой голос для тебя",
-                    "Привет! Надеюсь, у тебя прекрасный день!"
+                    "Привет! Надеюсь, у тебя прекрасный день!",
+                    "Спасибо что написала, я всегда рад тебя слышать!"
                 ]
                 test_text = random.choice(test_responses)
                 logger.info("🎤 FORCED VOICE MESSAGE FOR TESTING")
@@ -238,7 +271,7 @@ def webhook():
             "bot_initialized": bot is not None,
             "mode": "test" if not BOT_TOKEN or BOT_TOKEN.startswith('123456') else "production",
             "deepseek_configured": bool(DEEPSEEK_API_KEY and DEEPSEEK_API_KEY != 'sk-test1234567890'),
-            "features": ["voice_messages", "female_addressing", "sweet_names"]
+            "features": ["real_voice_messages", "female_addressing", "sweet_names", "gTTS"]
         }), 200
     
     if request.method == 'POST':
@@ -270,8 +303,9 @@ def home():
         "deepseek_configured": bool(DEEPSEEK_API_KEY and DEEPSEEK_API_KEY != 'sk-test1234567890'),
         "description": "Telegram бот с характером милого парня (общается только с девушками)",
         "features": [
-            "Голосовые сообщения (текстовые)",
-            "Обращение к девушкам", 
+            "НАСТОЯЩИЕ голосовые сообщения", 
+            "Google Text-to-Speech",
+            "Обращение к девушкам",
             "Ласковые обращения",
             "Мужской характер - Алексей"
         ],
