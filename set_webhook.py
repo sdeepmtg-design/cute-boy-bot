@@ -28,7 +28,6 @@ def set_webhook():
     result = response.json()
     print("📡 Webhook set result:", result)
     
-    # Проверка информации о вебхуке
     info_response = requests.get(f"https://api.telegram.org/bot{token}/getWebhookInfo")
     print("🔍 Webhook info:", info_response.json())
 
