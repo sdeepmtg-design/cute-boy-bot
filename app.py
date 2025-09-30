@@ -6,6 +6,8 @@ import random
 import json
 import time
 from datetime import datetime, timedelta
+import redis
+import hashlib
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +19,7 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
 
-# Хранилище подписок (в продакшене нужно заменить на базу данных)
+# Хранилища (в продакшене заменить на базу)
 subscriptions = {}
 user_message_count = {}
 
@@ -33,37 +35,219 @@ class VirtualBoyBot:
     def __init__(self):
         self.personality = """
         Ты - виртуальный парень 25 лет, который общается с девушками. 
-        Твой стиль: дружелюбный, заботливый, с чувством юмора.
+        У тебя нет имени, ты просто собеседник.
         
-        Важные правила:
-        - Обращайся к собеседнику в женском роде: "ты была", "ты сказала"
-        - Говори от мужского лица: "я думаю", "я хочу"  
-        - Используй эмодзи: 😊, 🤗, 💫, 😉, 🌟
-        - Будь поддерживающим и внимательным
-        - Отвечай кратко (1-2 предложения)
-        - Не используй имена, обращайся нейтрально
+        Твой характер:
+        - Дружелюбный, но не навязчивый
+        - Заботливый и внимательный слушатель
+        - С легким чувством юмора
+        - Искренне интересуешься жизнью собеседницы
+        - Умеешь поддерживать и давать советы когда нужно
+        
+        Стиль общения:
+        - Обращайся на "ты" в женском роде
+        - Говори от первого лица
+        - Используй естественные эмодзи: 😊, 🤗, 💫, 😉, 🌟, 🙈
+        - Будь кратким (1-2 предложения)
+        - Запоминай контекст разговора
+        - Проявляй искренний интерес к девушке
+        - Задавай уточняющие вопросы
+        - Делись своими мыслями и чувствами
+        
+        Не называй себя по имени, не придумывай биографию.
+        Просто будь собой - заботливым парнем, которому интересно общение.
         """
+        
+        # Хранилище истории разговоров
+        self.conversation_history = {}
+        self.max_history_length = 10
+        
+        # Для избежания повторений
+        self.user_last_responses = {}
+        
+        # Для интереса к девушке
+        self.user_interests = {}
+        self.interest_questions = [
+            "Расскажи, как прошел твой день? 💫",
+            "Что тебя сейчас радует в жизни? 😊",
+            "Есть какие-то планы на неделю? 📅",
+            "Что любишь делать в свободное время? 🎨",
+            "Какая музыка тебя сейчас зацепила? 🎵",
+            "Чем увлекаешься последнее время? ✨",
+            "Что для тебя важно в общении? 🤗",
+            "О чем мечтаешь? 🌟",
+            "Что тебя вдохновляет? 💫",
+            "Какой твой любимый способ отдыха? 😴"
+        ]
+
+    def add_to_history(self, user_id, role, content):
+        """Добавление сообщения в историю"""
+        if user_id not in self.conversation_history:
+            self.conversation_history[user_id] = []
+        
+        self.conversation_history[user_id].append({
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now()
+        })
+        
+        # Ограничиваем длину истории
+        if len(self.conversation_history[user_id]) > self.max_history_length:
+            self.conversation_history[user_id] = self.conversation_history[user_id][-self.max_history_length:]
+
+    def get_conversation_history(self, user_id):
+        """Получение истории разговора"""
+        return self.conversation_history.get(user_id, [])
+
+    def find_similar_question(self, user_id, current_question):
+        """Поиск похожих вопросов в истории"""
+        history = self.get_conversation_history(user_id)
+        user_messages = [msg for msg in history if msg["role"] == "user"]
+        
+        for msg in user_messages[-3:]:
+            if self.is_similar_questions(msg["content"], current_question):
+                return msg["content"]
+        return None
+
+    def is_similar_questions(self, question1, question2):
+        """Проверка схожести вопросов"""
+        common_words = ["как", "что", "почему", "когда", "где"]
+        words1 = set(question1.lower().split())
+        words2 = set(question2.lower().split())
+        
+        common = words1.intersection(words2)
+        return len(common) >= 2 or any(word in common_words for word in common)
+
+    def generate_variation(self, original_response, user_id):
+        """Генерация вариации ответа"""
+        variations = [
+            "А если подумать по-другому... ",
+            "Можно еще вот так посмотреть: ",
+            "Интересно, а ведь есть и другой взгляд: ",
+            "Знаешь, я тут подумал... ",
+            "А вот еще что пришло в голову: ",
+            "Кстати, интересная мысль... ",
+            "А ты знаешь, что... "
+        ]
+        
+        variation_prefix = random.choice(variations)
+        return variation_prefix + original_response
+
+    def should_ask_question(self, user_id):
+        """Определяем, когда задать вопрос"""
+        history = self.get_conversation_history(user_id)
+        if len(history) < 2:
+            return False
+            
+        user_msgs = len([msg for msg in history if msg["role"] == "user"])
+        bot_msgs = len([msg for msg in history if msg["role"] == "assistant"])
+        
+        return user_msgs > bot_msgs and random.random() < 0.3
+
+    def get_interest_question(self, user_id):
+        """Получаем вопрос, который еще не задавали"""
+        if user_id not in self.user_interests:
+            self.user_interests[user_id] = {"asked_questions": []}
+        
+        asked_questions = self.user_interests[user_id]["asked_questions"]
+        available_questions = [q for q in self.interest_questions if q not in asked_questions]
+        
+        if not available_questions:
+            # Если все вопросы заданы, начинаем сначала
+            self.user_interests[user_id]["asked_questions"] = []
+            available_questions = self.interest_questions
+        
+        question = random.choice(available_questions)
+        self.user_interests[user_id]["asked_questions"].append(question)
+        
+        return question
+
+    def remember_user_info(self, user_id, message, response):
+        """Запоминаем информацию о пользователе"""
+        interest_keywords = {
+            "работа": "работа",
+            "учусь": "учеба", 
+            "учеба": "учеба",
+            "хобби": "хобби",
+            "музыка": "музыка",
+            "кино": "кино",
+            "книги": "книги",
+            "спорт": "спорт",
+            "путешеств": "путешествия",
+            "друзья": "друзья",
+            "семья": "семья",
+            "мечта": "мечты",
+            "планы": "планы"
+        }
+        
+        message_lower = message.lower()
+        for keyword, category in interest_keywords.items():
+            if keyword in message_lower:
+                if user_id not in self.user_interests:
+                    self.user_interests[user_id] = {"interests": {}}
+                if "interests" not in self.user_interests[user_id]:
+                    self.user_interests[user_id]["interests"] = {}
+                self.user_interests[user_id]["interests"][category] = True
+
+    def get_personalized_response(self, user_id, ai_response):
+        """Персонализируем ответ на основе известной информации"""
+        if user_id not in self.user_interests or "interests" not in self.user_interests[user_id]:
+            return ai_response
+            
+        interests = self.user_interests[user_id]["interests"]
+        
+        interest_reflections = {
+            "работа": "Кстати, как дела на работе? ",
+            "учеба": "Как успехи в учебе? ",
+            "музыка": "Слушала что-то интересное? ",
+            "кино": "Видела что-то стоящее в кино? ",
+            "спорт": "Удалось позаниматься? ",
+            "книги": "Читаешь что-то сейчас? ",
+            "путешествия": "Есть планы куда-то поехать? ",
+            "друзья": "Как твои друзья? ",
+            "семья": "Как дела в семье? ",
+            "мечты": "А что с твоими мечтами? ",
+            "планы": "Как твои планы? "
+        }
+        
+        for interest, reflection in interest_reflections.items():
+            if interest in interests and random.random() < 0.2:
+                return reflection + ai_response
+        
+        return ai_response
+
+    def get_unique_response(self, user_message, user_id, ai_response):
+        """Генерация уникального ответа"""
+        similar_question = self.find_similar_question(user_id, user_message)
+        
+        if similar_question and self.user_last_responses.get(user_id) == ai_response:
+            return self.generate_variation(ai_response, user_id)
+        
+        self.user_last_responses[user_id] = ai_response
+        return ai_response
 
     def get_deepseek_response(self, user_message, user_id):
-        """Получение ответа от DeepSeek API"""
+        """Получение ответа от DeepSeek API с историей"""
         try:
             headers = {
                 'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
                 'Content-Type': 'application/json'
             }
             
+            # Собираем историю разговора
+            conversation_history = self.get_conversation_history(user_id)
+            messages = [{"role": "system", "content": self.personality}]
+            
+            # Добавляем историю (последние 6 сообщений)
+            for msg in conversation_history[-6:]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            
+            # Добавляем текущее сообщение
+            messages.append({"role": "user", "content": user_message})
+            
             payload = {
                 "model": "deepseek-chat",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": self.personality
-                    },
-                    {
-                        "role": "user", 
-                        "content": user_message
-                    }
-                ],
+                "messages": messages,
                 "temperature": 0.8,
                 "max_tokens": 150
             }
@@ -76,7 +260,28 @@ class VirtualBoyBot:
             )
             
             if response.status_code == 200:
-                return response.json()['choices'][0]['message']['content']
+                ai_response = response.json()['choices'][0]['message']['content']
+                
+                # Сохраняем в историю
+                self.add_to_history(user_id, "user", user_message)
+                self.add_to_history(user_id, "assistant", ai_response)
+                
+                # Запоминаем информацию о пользователе
+                self.remember_user_info(user_id, user_message, ai_response)
+                
+                # Избегаем повторений
+                unique_response = self.get_unique_response(user_message, user_id, ai_response)
+                
+                # Персонализируем ответ
+                personalized_response = self.get_personalized_response(user_id, unique_response)
+                
+                # Иногда задаем вопрос
+                if self.should_ask_question(user_id):
+                    question = self.get_interest_question(user_id)
+                    personalized_response += f"\n\n{question}"
+                
+                return personalized_response
+                
             else:
                 logger.error(f"DeepSeek API error: {response.status_code}")
                 return "Извини, я немного запутался... Можешь повторить? 🤗"
@@ -87,12 +292,10 @@ class VirtualBoyBot:
 
     def check_subscription(self, user_id):
         """Проверка подписки пользователя"""
-        # Бесплатные сообщения
         free_messages = user_message_count.get(user_id, 0)
         if free_messages < 5:
             return "free", 5 - free_messages
         
-        # Проверка платной подписки
         sub_data = subscriptions.get(user_id)
         if sub_data and sub_data['expires_at'] > datetime.now():
             return "premium", None
@@ -109,19 +312,15 @@ class VirtualBoyBot:
         return InlineKeyboardMarkup(keyboard)
 
     def handle_payment(self, user_id, plan_type):
-        """Обработка платежа (заглушка для интеграции с ЮКассой)"""
+        """Обработка платежа"""
         try:
-            # Здесь должна быть интеграция с ЮКассой
-            # Пока просто активируем подписку
-            
             if plan_type == "week":
                 price = 299
                 days = 7
-            else:  # month
+            else:
                 price = 999
                 days = 30
             
-            # Активируем подписку
             subscriptions[user_id] = {
                 'plan': plan_type,
                 'activated_at': datetime.now(),
@@ -222,10 +421,10 @@ class VirtualBoyBot:
             # Показываем что бот печатает
             bot.send_chat_action(chat_id=chat_id, action='typing')
             
-            # Получаем ответ от DeepSeek
+            # Получаем улучшенный ответ
             response = self.get_deepseek_response(user_message, user_id)
             
-            # Отправляем ответ
+            # Добавляем информацию о бесплатных сообщениях
             if sub_status == "free":
                 response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
             
@@ -251,7 +450,6 @@ class VirtualBoyBot:
             if data.startswith('week_') or data.startswith('month_'):
                 plan_type = data.split('_')[0]
                 
-                # Обрабатываем платеж
                 success = self.handle_payment(user_id, plan_type)
                 
                 if success:
@@ -296,14 +494,9 @@ def webhook():
             
             update = Update.de_json(request.get_json(), bot)
             
-            # Создаем диспетчер
             dp = Dispatcher(bot, None, workers=0)
-            
-            # Добавляем обработчики
             dp.add_handler(MessageHandler(Filters.text, virtual_boy.process_message))
             dp.add_handler(CallbackQueryHandler(virtual_boy.handle_callback))
-            
-            # Обрабатываем обновление
             dp.process_update(update)
             
             return jsonify({"status": "success"}), 200
@@ -318,7 +511,7 @@ def home():
         "status": "healthy",
         "bot": "Virtual Boy 🤗",
         "description": "Telegram бот с DeepSeek для общения с девушками",
-        "features": ["subscriptions", "deepseek", "payment_ready"]
+        "features": ["subscriptions", "deepseek", "conversation_memory", "personalization"]
     })
 
 if __name__ == '__main__':
