@@ -37,7 +37,7 @@ class YookassaPayment:
                 },
                 "confirmation": {
                     "type": "redirect",
-                    "return_url": f"https://t.me/your_bot?start=payment_success_{user_id}"
+                    "return_url": f"https://t.me/Boyfriendcute_bot?start=payment_success_{user_id}"
                 },
                 "capture": True,
                 "description": description,
