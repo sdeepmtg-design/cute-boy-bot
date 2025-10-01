@@ -25,7 +25,7 @@ class YookassaPayment:
             payment_id = str(uuid.uuid4())
             
             # Сумма в копейках
-            amount_rub = int(amount * 100)
+            amount_rub = int(amount)
             
             payload = {
                 "amount": {
