@@ -72,18 +72,33 @@ class VirtualBoyBot:
         return self.conversation_history.get(user_id, [])
 
     def check_subscription(self, user_id):
-        """Проверка подписки из БАЗЫ ДАННЫХ"""
+        """Проверка подписки из БАЗЫ ДАННЫХ с подробным логированием"""
+        user_id_str = str(user_id)
+        logger.info(f"🔍 CHECKING SUBSCRIPTION for user {user_id_str}")
+        
         # Сначала проверяем бесплатные сообщения
         free_messages = db_manager.get_message_count(user_id)
+        logger.info(f"📊 Free messages count: {free_messages}")
+        
         if free_messages < 5:
-            return "free", 5 - free_messages
+            remaining = 5 - free_messages
+            logger.info(f"🆓 FREE ACCESS: {remaining} messages left")
+            return "free", remaining
         
         # Проверяем платную подписку
         sub_data = db_manager.get_subscription(user_id)
+        logger.info(f"📦 Subscription data from DB: {sub_data}")
         
-        if sub_data and sub_data.expires_at > datetime.now():
-            return "premium", None
+        if sub_data:
+            logger.info(f"📅 Subscription expires at: {sub_data.expires_at}")
+            logger.info(f"⏰ Current time: {datetime.now()}")
+            logger.info(f"✅ Subscription active: {sub_data.expires_at > datetime.now()}")
+            
+            if sub_data.expires_at > datetime.now():
+                logger.info(f"💎 PREMIUM ACCESS: Plan {sub_data.plan_type}")
+                return "premium", None
         
+        logger.info("❌ NO VALID SUBSCRIPTION")
         return "expired", None
 
     def create_payment_keyboard(self, user_id):
@@ -137,7 +152,7 @@ class VirtualBoyBot:
             # Сохраняем в БАЗУ ДАННЫХ
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
-            logger.info(f"SUBSCRIPTION SAVED TO DATABASE: {subscription.plan_type} until {subscription.expires_at}")
+            logger.info(f"💾 SUBSCRIPTION SAVED TO DATABASE: {subscription.plan_type} until {subscription.expires_at}")
             
             # Отправляем уведомление пользователю
             if bot:
@@ -147,7 +162,7 @@ class VirtualBoyBot:
                     parse_mode='Markdown'
                 )
             
-            logger.info(f"Subscription activated for user {user_id}: {plan_type}")
+            logger.info(f"🎉 Subscription activated for user {user_id}: {plan_type}")
             return True
             
         except Exception as e:
@@ -196,7 +211,7 @@ class VirtualBoyBot:
 • Приоритетная поддержка
 • Экономия 30%
 
-*После оплаты подписка активируется автоматически!* ✅""",
+*После оплата подписка активируется автоматически!* ✅""",
                     reply_markup=keyboard,
                     parse_mode='Markdown'
                 )
@@ -220,6 +235,7 @@ class VirtualBoyBot:
 
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
+            logger.info(f"🎯 FINAL SUBSCRIPTION STATUS: {sub_status}")
             
             if sub_status == "expired":
                 bot.send_message(
@@ -239,6 +255,7 @@ class VirtualBoyBot:
                 current_count = db_manager.get_message_count(user_id)
                 db_manager.update_message_count(user_id, current_count + 1)
                 remaining = 5 - (current_count + 1)
+                logger.info(f"📝 Message count updated: {current_count} -> {current_count + 1}")
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
