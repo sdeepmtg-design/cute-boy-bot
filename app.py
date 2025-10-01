@@ -5,7 +5,7 @@ import logging
 import random
 from datetime import datetime, timedelta
 from payment import YookassaPayment
-from database import db_manager, Base, engine
+from database import db_manager, Base, engine, UserSubscription, SessionLocal
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -101,9 +101,8 @@ class VirtualBoyBot:
             logger.info(f"❌ NO SUBSCRIPTION FOUND in database for user {user_id_str}")
             # Давайте проверим ВСЕ подписки в базе для отладки
             try:
-                from database import SessionLocal
                 db = SessionLocal()
-                all_subs = db.query(db_manager.get_subscription.__self__.db.query(UserSubscription).filter().all()
+                all_subs = db.query(UserSubscription).all()
                 logger.info(f"📋 ALL SUBSCRIPTIONS IN DB: {len(all_subs)} total")
                 for sub in all_subs:
                     logger.info(f"   - User {sub.user_id}: {sub.plan_type} until {sub.expires_at}")
