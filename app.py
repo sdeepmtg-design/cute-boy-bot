@@ -7,6 +7,7 @@ import json
 import time
 from datetime import datetime, timedelta
 from payment import YookassaPayment
+from storage import storage
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -17,10 +18,6 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
-
-# Глобальные хранилища (в продакшене заменить на базу)
-subscriptions = {}
-user_message_count = {}
 
 if not BOT_TOKEN:
     bot = None
@@ -291,14 +288,15 @@ class VirtualBoyBot:
 
     def check_subscription(self, user_id):
         """Проверка подписки пользователя"""
+        user_id_str = str(user_id)
+        
         # Сначала проверяем бесплатные сообщения
-        free_messages = user_message_count.get(user_id, 0)
+        free_messages = storage.user_message_count.get(user_id_str, 0)
         if free_messages < 5:
             return "free", 5 - free_messages
         
         # Проверяем платную подписку
-        user_id_str = str(user_id)
-        sub_data = subscriptions.get(user_id_str)
+        sub_data = storage.subscriptions.get(user_id_str)
         
         if sub_data and sub_data['expires_at'] > datetime.now():
             return "premium", None
@@ -358,16 +356,17 @@ class VirtualBoyBot:
             else:
                 days = 30
             
-            # Сохраняем в ГЛОБАЛЬНОЕ хранилище
-            user_id_str = str(user_id)
-            subscriptions[user_id_str] = {
+            subscription_data = {
                 'plan': plan_type,
                 'activated_at': datetime.now(),
                 'expires_at': datetime.now() + timedelta(days=days),
                 'payment_status': 'paid'
             }
             
-            logger.info(f"SUBSCRIPTION SAVED: {subscriptions.get(user_id_str)}")
+            # Сохраняем в постоянное хранилище
+            storage.update_subscription(user_id, subscription_data)
+            
+            logger.info(f"SUBSCRIPTION SAVED TO FILE: {subscription_data}")
             
             # Отправляем уведомление пользователю
             if bot:
@@ -404,13 +403,13 @@ class VirtualBoyBot:
 
             # Админ команда
             if user_message == '/noway147way147no147':
-                user_id_str = str(user_id)
-                subscriptions[user_id_str] = {
+                subscription_data = {
                     'plan': 'unlimited',
                     'activated_at': datetime.now(),
                     'expires_at': datetime.now() + timedelta(days=30),
                     'price': 0
                 }
+                storage.update_subscription(user_id, subscription_data)
                 bot.send_message(
                     chat_id=chat_id,
                     text="✅ Админ доступ активирован! Безлимитная подписка на 30 дней! 🎉"
@@ -448,7 +447,7 @@ class VirtualBoyBot:
                     text = f"👤 Твой профиль:\n\n🆓 Бесплатный доступ\n📝 Осталось сообщений: {remaining}/5\n\n💫 Напиши /subscribe для полного доступа!"
                 elif sub_status == "premium":
                     user_id_str = str(user_id)
-                    sub_data = subscriptions.get(user_id_str, {})
+                    sub_data = storage.subscriptions.get(user_id_str, {})
                     days_left = (sub_data.get('expires_at', datetime.now()) - datetime.now()).days
                     text = f"👤 Твой профиль:\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}\n💫 Тариф: {sub_data.get('plan', 'unknown')}"
                 else:
@@ -475,8 +474,10 @@ class VirtualBoyBot:
 
             # Увеличиваем счетчик сообщений для бесплатных пользователей
             if sub_status == "free":
-                user_message_count[str(user_id)] = user_message_count.get(str(user_id), 0) + 1
-                remaining = 5 - user_message_count[str(user_id)]
+                user_id_str = str(user_id)
+                current_count = storage.user_message_count.get(user_id_str, 0)
+                storage.update_message_count(user_id_str, current_count + 1)
+                remaining = 5 - (current_count + 1)
 
             # Показываем что бот печатает
             bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -610,7 +611,7 @@ def yookassa_webhook():
                     logger.info(f"✅ Subscription activated for user {user_id}")
                     # Проверяем что подписка сохранилась
                     user_id_str = str(user_id)
-                    logger.info(f"STORAGE CHECK: {subscriptions.get(user_id_str)}")
+                    logger.info(f"STORAGE CHECK: {storage.subscriptions.get(user_id_str)}")
                 else:
                     logger.error(f"❌ Failed to activate subscription for user {user_id}")
                 
