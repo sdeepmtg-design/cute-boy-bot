@@ -17,13 +17,6 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
 
-# Проверяем подключение к базе при старте
-try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("✅ Database tables created/verified")
-except Exception as e:
-    logger.error(f"❌ Database error: {e}")
-
 if not BOT_TOKEN:
     bot = None
 else:
@@ -62,53 +55,64 @@ class VirtualBoyBot:
         self.conversation_history = {}
         self.max_history_length = 10
 
-    def add_to_history(self, user_id, role, content):
-        if user_id not in self.conversation_history:
-            self.conversation_history[user_id] = []
-        
-        self.conversation_history[user_id].append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now()
-        })
-        
-        if len(self.conversation_history[user_id]) > self.max_history_length:
-            self.conversation_history[user_id] = self.conversation_history[user_id][-self.max_history_length:]
-
-    def get_conversation_history(self, user_id):
-        return self.conversation_history.get(user_id, [])
-
     def check_subscription(self, user_id):
-        """Проверка подписки из БАЗЫ ДАННЫХ с подробным логированием"""
+        """Проверка подписки из БАЗЫ ДАННЫХ с МАКСИМАЛЬНЫМ логированием"""
         user_id_str = str(user_id)
-        logger.info(f"🔍 CHECKING SUBSCRIPTION for user {user_id_str}")
+        logger.info(f"🎯 === START SUBSCRIPTION CHECK ===")
+        logger.info(f"🔍 Checking subscription for user: {user_id_str}")
         
         # Сначала проверяем бесплатные сообщения
         free_messages = db_manager.get_message_count(user_id)
-        logger.info(f"📊 Free messages count: {free_messages}")
+        logger.info(f"📊 Free messages count from DB: {free_messages}")
         
         if free_messages < 5:
             remaining = 5 - free_messages
             logger.info(f"🆓 FREE ACCESS: {remaining} messages left")
+            logger.info(f"🎯 === END SUBSCRIPTION CHECK: FREE ===")
             return "free", remaining
         
-        # Проверяем платную подписку
+        # Проверяем платную подписку - ДЕТАЛЬНАЯ ПРОВЕРКА
+        logger.info(f"🔎 Looking for subscription in database...")
         sub_data = db_manager.get_subscription(user_id)
         
         if sub_data:
-            logger.info(f"📦 Subscription FOUND: {sub_data.plan_type}")
-            logger.info(f"📅 Subscription expires at: {sub_data.expires_at}")
-            logger.info(f"⏰ Current time: {datetime.now()}")
-            is_active = sub_data.expires_at > datetime.now()
-            logger.info(f"✅ Subscription active: {is_active}")
+            logger.info(f"✅ SUBSCRIPTION FOUND IN DB!")
+            logger.info(f"📦 Plan: {sub_data.plan_type}")
+            logger.info(f"📅 Activated: {sub_data.activated_at}")
+            logger.info(f"📅 Expires: {sub_data.expires_at}")
+            logger.info(f"💰 Status: {sub_data.payment_status}")
+            
+            current_time = datetime.now()
+            expires_at = sub_data.expires_at
+            is_active = expires_at > current_time
+            
+            logger.info(f"⏰ Current time: {current_time}")
+            logger.info(f"⏰ Expires at: {expires_at}")
+            logger.info(f"✅ Is active: {is_active}")
+            logger.info(f"⏰ Time difference: {expires_at - current_time}")
             
             if is_active:
                 logger.info(f"💎 PREMIUM ACCESS: Plan {sub_data.plan_type}")
+                logger.info(f"🎯 === END SUBSCRIPTION CHECK: PREMIUM ===")
                 return "premium", None
+            else:
+                logger.info(f"❌ Subscription EXPIRED")
         else:
-            logger.info("📦 No subscription found in database")
+            logger.info(f"❌ NO SUBSCRIPTION FOUND in database for user {user_id_str}")
+            # Давайте проверим ВСЕ подписки в базе для отладки
+            try:
+                from database import SessionLocal
+                db = SessionLocal()
+                all_subs = db.query(db_manager.get_subscription.__self__.db.query(UserSubscription).filter().all()
+                logger.info(f"📋 ALL SUBSCRIPTIONS IN DB: {len(all_subs)} total")
+                for sub in all_subs:
+                    logger.info(f"   - User {sub.user_id}: {sub.plan_type} until {sub.expires_at}")
+                db.close()
+            except Exception as e:
+                logger.info(f"⚠️ Could not list all subscriptions: {e}")
         
-        logger.info("❌ NO VALID SUBSCRIPTION")
+        logger.info("❌ NO VALID SUBSCRIPTION - returning EXPIRED")
+        logger.info(f"🎯 === END SUBSCRIPTION CHECK: EXPIRED ===")
         return "expired", None
 
     def create_payment_keyboard(self, user_id):
@@ -159,14 +163,24 @@ class VirtualBoyBot:
             else:
                 days = 30
             
+            logger.info(f"💾 SAVING SUBSCRIPTION TO DATABASE...")
+            logger.info(f"   User: {user_id}")
+            logger.info(f"   Plan: {plan_type}") 
+            logger.info(f"   Days: {days}")
+            
             # Сохраняем в БАЗУ ДАННЫХ
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
-            logger.info(f"💾 SUBSCRIPTION SAVED TO DATABASE: {subscription.plan_type} until {subscription.expires_at}")
+            logger.info(f"✅ SUBSCRIPTION SAVED: {subscription.plan_type} until {subscription.expires_at}")
             
-            # Проверяем что сохранилось
+            # НЕМЕДЛЕННАЯ ПРОВЕРКА что сохранилось
+            logger.info(f"🔍 IMMEDIATE VERIFICATION...")
             check_sub = db_manager.get_subscription(user_id)
-            logger.info(f"🔍 VERIFICATION: Subscription in DB - {check_sub.plan_type if check_sub else 'NOT FOUND'}")
+            if check_sub:
+                logger.info(f"✅ VERIFICATION PASSED: Subscription found - {check_sub.plan_type}")
+                logger.info(f"   Details: {check_sub.user_id} -> {check_sub.plan_type} until {check_sub.expires_at}")
+            else:
+                logger.error(f"❌ VERIFICATION FAILED: Subscription NOT FOUND after saving!")
             
             # Отправляем уведомление пользователю
             if bot:
