@@ -6,8 +6,6 @@ import random
 import json
 import time
 from datetime import datetime, timedelta
-import redis
-import hashlib
 from payment import YookassaPayment
 
 app = Flask(__name__)
@@ -20,10 +18,9 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
 
-# Хранилища (в продакшене заменить на базу)
+# Глобальные хранилища (в продакшене заменить на базу)
 subscriptions = {}
 user_message_count = {}
-pending_payments = {}
 
 if not BOT_TOKEN:
     bot = None
@@ -81,9 +78,6 @@ class VirtualBoyBot:
             "Что тебя вдохновляет? 💫",
             "Какой твой любимый способ отдыха? 😴"
         ]
-        
-        # Для хранения ожидающих платежей
-        self.pending_payments = {}
 
     def add_to_history(self, user_id, role, content):
         """Добавление сообщения в историю"""
@@ -297,11 +291,15 @@ class VirtualBoyBot:
 
     def check_subscription(self, user_id):
         """Проверка подписки пользователя"""
+        # Сначала проверяем бесплатные сообщения
         free_messages = user_message_count.get(user_id, 0)
         if free_messages < 5:
             return "free", 5 - free_messages
         
-        sub_data = subscriptions.get(user_id)
+        # Проверяем платную подписку
+        user_id_str = str(user_id)
+        sub_data = subscriptions.get(user_id_str)
+        
         if sub_data and sub_data['expires_at'] > datetime.now():
             return "premium", None
         
@@ -323,11 +321,9 @@ class VirtualBoyBot:
             if plan_type == "week":
                 amount = 299
                 description = "Подписка на неделю"
-                days = 7
             else:
                 amount = 999
-                description = "Подписка на месяц" 
-                days = 30
+                description = "Подписка на месяц"
             
             # Создаем экземпляр платежной системы
             yookassa = YookassaPayment(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
@@ -341,18 +337,6 @@ class VirtualBoyBot:
             )
             
             if payment_result["success"]:
-                # Сохраняем информацию о платеже
-                if user_id not in self.pending_payments:
-                    self.pending_payments[user_id] = {}
-                
-                self.pending_payments[user_id] = {
-                    "payment_id": payment_result["payment_id"],
-                    "plan_type": plan_type,
-                    "amount": amount,
-                    "created_at": datetime.now(),
-                    "status": "pending"
-                }
-                
                 return {
                     "success": True,
                     "message": payment_result["message"],
@@ -374,12 +358,16 @@ class VirtualBoyBot:
             else:
                 days = 30
             
-            subscriptions[user_id] = {
+            # Сохраняем в ГЛОБАЛЬНОЕ хранилище
+            user_id_str = str(user_id)
+            subscriptions[user_id_str] = {
                 'plan': plan_type,
                 'activated_at': datetime.now(),
                 'expires_at': datetime.now() + timedelta(days=days),
                 'payment_status': 'paid'
             }
+            
+            logger.info(f"SUBSCRIPTION SAVED: {subscriptions.get(user_id_str)}")
             
             # Отправляем уведомление пользователю
             if bot:
@@ -416,7 +404,8 @@ class VirtualBoyBot:
 
             # Админ команда
             if user_message == '/noway147way147no147':
-                subscriptions[user_id] = {
+                user_id_str = str(user_id)
+                subscriptions[user_id_str] = {
                     'plan': 'unlimited',
                     'activated_at': datetime.now(),
                     'expires_at': datetime.now() + timedelta(days=30),
@@ -458,9 +447,10 @@ class VirtualBoyBot:
                 if sub_status == "free":
                     text = f"👤 Твой профиль:\n\n🆓 Бесплатный доступ\n📝 Осталось сообщений: {remaining}/5\n\n💫 Напиши /subscribe для полного доступа!"
                 elif sub_status == "premium":
-                    sub_data = subscriptions[user_id]
-                    days_left = (sub_data['expires_at'] - datetime.now()).days
-                    text = f"👤 Твой профиль:\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}\n💫 Тариф: {sub_data['plan']}"
+                    user_id_str = str(user_id)
+                    sub_data = subscriptions.get(user_id_str, {})
+                    days_left = (sub_data.get('expires_at', datetime.now()) - datetime.now()).days
+                    text = f"👤 Твой профиль:\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}\n💫 Тариф: {sub_data.get('plan', 'unknown')}"
                 else:
                     text = f"👤 Твой профиль:\n\n❌ Подписка истекла\n💫 Напиши /subscribe чтобы продолжить общение!"
                 
@@ -485,8 +475,8 @@ class VirtualBoyBot:
 
             # Увеличиваем счетчик сообщений для бесплатных пользователей
             if sub_status == "free":
-                user_message_count[user_id] = user_message_count.get(user_id, 0) + 1
-                remaining = 5 - user_message_count[user_id]
+                user_message_count[str(user_id)] = user_message_count.get(str(user_id), 0) + 1
+                remaining = 5 - user_message_count[str(user_id)]
 
             # Показываем что бот печатает
             bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -610,12 +600,17 @@ def yookassa_webhook():
             user_id = metadata.get('user_id')
             plan_type = metadata.get('plan_type')
             
+            logger.info(f"Processing payment for user {user_id}, plan {plan_type}")
+            
             if user_id and plan_type:
                 # Активируем подписку
                 success = virtual_boy.activate_subscription(int(user_id), plan_type)
                 
                 if success:
                     logger.info(f"✅ Subscription activated for user {user_id}")
+                    # Проверяем что подписка сохранилась
+                    user_id_str = str(user_id)
+                    logger.info(f"STORAGE CHECK: {subscriptions.get(user_id_str)}")
                 else:
                     logger.error(f"❌ Failed to activate subscription for user {user_id}")
                 

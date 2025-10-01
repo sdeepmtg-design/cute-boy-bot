@@ -74,37 +74,6 @@ class YookassaPayment:
             logger.error(f"Error creating payment: {e}")
             return {"success": False, "error": str(e)}
 
-    def check_payment_status(self, payment_id):
-        """Проверка статуса платежа"""
-        try:
-            headers = {
-                "Content-Type": "application/json"
-            }
-            
-            auth = (self.shop_id, self.secret_key)
-            
-            response = requests.get(
-                f"{self.base_url}/payments/{payment_id}",
-                headers=headers,
-                auth=auth,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                payment_data = response.json()
-                return {
-                    "success": True,
-                    "status": payment_data['status'],
-                    "paid": payment_data['paid'],
-                    "metadata": payment_data.get('metadata', {})
-                }
-            else:
-                return {"success": False, "error": response.text}
-                
-        except Exception as e:
-            logger.error(f"Error checking payment: {e}")
-            return {"success": False, "error": str(e)}
-
     def create_payment_link(self, amount, description, user_id, plan_type):
         """Создание ссылки на оплату для Telegram"""
         payment_result = self.create_payment(amount, description, user_id, plan_type)
