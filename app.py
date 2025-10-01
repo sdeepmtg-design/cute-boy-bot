@@ -56,52 +56,20 @@ class VirtualBoyBot:
         self.max_history_length = 10
 
     def check_subscription(self, user_id):
-        """Проверка подписки из БАЗЫ ДАННЫХ с ИСПРАВЛЕННОЙ логикой"""
+        """Проверка подписки из БАЗЫ ДАННЫХ"""
         user_id_str = str(user_id)
-        logger.info(f"🎯 === START SUBSCRIPTION CHECK ===")
-        logger.info(f"🔍 Checking subscription for user: {user_id_str}")
         
-        # Сначала проверяем платную подписку - ЭТО ВАЖНО!
-        logger.info(f"🔎 Looking for PAID subscription in database...")
+        # Сначала проверяем платную подписку
         sub_data = db_manager.get_subscription(user_id)
         
-        if sub_data:
-            logger.info(f"✅ PAID SUBSCRIPTION FOUND IN DB!")
-            logger.info(f"📦 Plan: {sub_data.plan_type}")
-            logger.info(f"📅 Activated: {sub_data.activated_at}")
-            logger.info(f"📅 Expires: {sub_data.expires_at}")
-            logger.info(f"💰 Status: {sub_data.payment_status}")
-            
-            current_time = datetime.now()
-            expires_at = sub_data.expires_at
-            is_active = expires_at > current_time
-            
-            logger.info(f"⏰ Current time: {current_time}")
-            logger.info(f"⏰ Expires at: {expires_at}")
-            logger.info(f"✅ Is active: {is_active}")
-            logger.info(f"⏰ Time difference: {expires_at - current_time}")
-            
-            if is_active:
-                logger.info(f"💎 PREMIUM ACCESS: Plan {sub_data.plan_type}")
-                logger.info(f"🎯 === END SUBSCRIPTION CHECK: PREMIUM ===")
-                return "premium", None
-            else:
-                logger.info(f"❌ Paid subscription EXPIRED")
-        else:
-            logger.info(f"❌ NO PAID SUBSCRIPTION FOUND")
+        if sub_data and sub_data.expires_at > datetime.now():
+            return "premium", None
         
         # Только если нет активной платной подписки - проверяем бесплатные сообщения
         free_messages = db_manager.get_message_count(user_id)
-        logger.info(f"📊 Free messages count from DB: {free_messages}")
-        
         if free_messages < 5:
-            remaining = 5 - free_messages
-            logger.info(f"🆓 FREE ACCESS: {remaining} messages left")
-            logger.info(f"🎯 === END SUBSCRIPTION CHECK: FREE ===")
-            return "free", remaining
+            return "free", 5 - free_messages
         
-        logger.info("❌ NO VALID SUBSCRIPTION - returning EXPIRED")
-        logger.info(f"🎯 === END SUBSCRIPTION CHECK: EXPIRED ===")
         return "expired", None
 
     def create_payment_keyboard(self, user_id):
@@ -152,24 +120,10 @@ class VirtualBoyBot:
             else:
                 days = 30
             
-            logger.info(f"💾 SAVING SUBSCRIPTION TO DATABASE...")
-            logger.info(f"   User: {user_id}")
-            logger.info(f"   Plan: {plan_type}") 
-            logger.info(f"   Days: {days}")
-            
             # Сохраняем в БАЗУ ДАННЫХ
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
-            logger.info(f"✅ SUBSCRIPTION SAVED: {subscription.plan_type} until {subscription.expires_at}")
-            
-            # НЕМЕДЛЕННАЯ ПРОВЕРКА что сохранилось
-            logger.info(f"🔍 IMMEDIATE VERIFICATION...")
-            check_sub = db_manager.get_subscription(user_id)
-            if check_sub:
-                logger.info(f"✅ VERIFICATION PASSED: Subscription found - {check_sub.plan_type}")
-                logger.info(f"   Details: {check_sub.user_id} -> {check_sub.plan_type} until {check_sub.expires_at}")
-            else:
-                logger.error(f"❌ VERIFICATION FAILED: Subscription NOT FOUND after saving!")
+            logger.info(f"✅ Subscription activated: {subscription.plan_type} until {subscription.expires_at}")
             
             # Отправляем уведомление пользователю
             if bot:
@@ -179,7 +133,6 @@ class VirtualBoyBot:
                     parse_mode='Markdown'
                 )
             
-            logger.info(f"🎉 Subscription activated for user {user_id}: {plan_type}")
             return True
             
         except Exception as e:
@@ -195,12 +148,21 @@ class VirtualBoyBot:
             
             logger.info(f"📩 Message from {user_name} ({user_id}): {user_message}")
 
-            # Обработка возврата из оплаты
+            # Обработка возврата из оплаты - ПРОВЕРЯЕМ СТАТУС СРАЗУ
             if user_message.startswith('/start payment_success_'):
-                bot.send_message(
-                    chat_id=chat_id,
-                    text="✅ Спасибо за оплату! Подписка активируется в течение минуты..."
-                )
+                # Проверяем есть ли уже активная подписка
+                sub_status, remaining = self.check_subscription(user_id)
+                
+                if sub_status == "premium":
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text="✅ **Подписка уже активна!** 🎉\n\nМожешь начинать общение! 💫"
+                    )
+                else:
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text="⏳ **Проверяем статус оплаты...**\n\nОбычно активация занимает до минуты. Если подписка не активируется, напиши /subscribe для повторной проверки."
+                    )
                 return
 
             # Админ команда
@@ -228,7 +190,7 @@ class VirtualBoyBot:
 • Приоритетная поддержка
 • Экономия 30%
 
-*После оплата подписка активируется автоматически!* ✅""",
+*После оплаты подписка активируется автоматически!* ✅""",
                     reply_markup=keyboard,
                     parse_mode='Markdown'
                 )
@@ -252,7 +214,6 @@ class VirtualBoyBot:
 
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
-            logger.info(f"🎯 FINAL SUBSCRIPTION STATUS: {sub_status}")
             
             if sub_status == "expired":
                 bot.send_message(
@@ -272,7 +233,6 @@ class VirtualBoyBot:
                 current_count = db_manager.get_message_count(user_id)
                 db_manager.update_message_count(user_id, current_count + 1)
                 remaining = 5 - (current_count + 1)
-                logger.info(f"📝 Message count updated: {current_count} -> {current_count + 1}")
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -287,7 +247,10 @@ class VirtualBoyBot:
         except Exception as e:
             logger.error(f"Error processing message: {e}")
             if bot:
-                bot.send_message(chat_id=update.message.chat_id, text="Ой, что-то пошло не так... Давай попробуем ещё раз? 🤗")
+                bot.send_message(
+                    chat_id=update.message.chat_id, 
+                    text="Ой, что-то пошло не так... Давай попробуем ещё раз? 🤗"
+                )
 
     def handle_callback(self, update, context):
         query = update.callback_query
@@ -308,8 +271,9 @@ class VirtualBoyBot:
                         parse_mode='Markdown',
                         disable_web_page_preview=False
                     )
+                    
                     query.edit_message_text(
-                        text="💫 *Ссылка для оплаты отправлена!*\n\nПроверь сообщения выше 👆",
+                        text="💫 *Ссылка для оплаты отправлена!*\n\nПосле оплаты вернись в бота - подписка активируется автоматически! ✅",
                         parse_mode='Markdown',
                         reply_markup=None
                     )
@@ -322,7 +286,7 @@ class VirtualBoyBot:
                     
             elif data.startswith('help_'):
                 query.edit_message_text(
-                    text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Перейди по ссылке оплаты\n3. Оплати картой\n4. Подписка активируется автоматически!\n\n*Тестовая карта:*\n`5555 5555 5555 4477`\nСрок: 01/30, CVV: 123\n\nЕсли возникли проблемы - @support",
+                    text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Перейди по ссылке оплаты\n3. Оплати картой\n4. Вернись в бота - подписка активируется автоматически!\n\n*Тестовая карта:*\n`5555 5555 5555 4477`\nСрок: 01/30, CVV: 123\n\nЕсли возникли проблемы - @support",
                     parse_mode='Markdown',
                     reply_markup=None
                 )
@@ -341,12 +305,14 @@ class VirtualBoyBot:
             )
 
     def get_deepseek_response(self, user_message, user_id):
+        """Получение ответа от DeepSeek API с УЛУЧШЕННОЙ обработкой ошибок"""
         try:
             headers = {
                 'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
                 'Content-Type': 'application/json'
             }
             
+            # Добавляем историю разговора
             conversation_history = self.get_conversation_history(user_id)
             messages = [{"role": "system", "content": self.personality}]
             
@@ -359,7 +325,8 @@ class VirtualBoyBot:
                 "model": "deepseek-chat",
                 "messages": messages,
                 "temperature": 0.8,
-                "max_tokens": 150
+                "max_tokens": 150,
+                "stream": False
             }
             
             response = requests.post(
@@ -370,18 +337,48 @@ class VirtualBoyBot:
             )
             
             if response.status_code == 200:
-                ai_response = response.json()['choices'][0]['message']['content']
-                self.add_to_history(user_id, "user", user_message)
-                self.add_to_history(user_id, "assistant", ai_response)
-                return ai_response
+                data = response.json()
+                if 'choices' in data and len(data['choices']) > 0:
+                    ai_response = data['choices'][0]['message']['content']
+                    
+                    # Сохраняем в историю
+                    self.add_to_history(user_id, "user", user_message)
+                    self.add_to_history(user_id, "assistant", ai_response)
+                    
+                    return ai_response
+                else:
+                    logger.error(f"DeepSeek API returned no choices: {data}")
+                    return "Извини, я немного запутался... Можешь повторить? 🤗"
                 
             else:
-                logger.error(f"DeepSeek API error: {response.status_code}")
+                logger.error(f"DeepSeek API error: {response.status_code} - {response.text}")
                 return "Извини, я немного запутался... Можешь повторить? 🤗"
                 
+        except requests.exceptions.Timeout:
+            logger.error("DeepSeek API timeout")
+            return "Ой, я немного задумался... Давай попробуем ещё раз? 💫"
+        except requests.exceptions.ConnectionError:
+            logger.error("DeepSeek API connection error")
+            return "Кажется, проблемы с соединением... Давай попробуем ещё раз? 🤗"
         except Exception as e:
             logger.error(f"Error calling DeepSeek: {e}")
             return "Ой, что-то я растерялся... Давай попробуем ещё раз? 💫"
+
+    def add_to_history(self, user_id, role, content):
+        if user_id not in self.conversation_history:
+            self.conversation_history[user_id] = []
+        
+        self.conversation_history[user_id].append({
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now()
+        })
+        
+        if len(self.conversation_history[user_id]) > self.max_history_length:
+            self.conversation_history[user_id] = self.conversation_history[user_id][-self.max_history_length:]
+
+    def get_conversation_history(self, user_id):
+        return self.conversation_history.get(user_id, [])
 
 # Инициализация бота
 virtual_boy = VirtualBoyBot()
@@ -416,26 +413,21 @@ def webhook():
 def yookassa_webhook():
     try:
         event_json = request.get_json()
-        logger.info(f"Yookassa webhook received: {event_json}")
+        logger.info(f"Yookassa webhook received")
         
         event_type = event_json.get('event')
         payment_data = event_json.get('object', {})
         
         if event_type == 'payment.succeeded':
-            payment_id = payment_data.get('id')
             metadata = payment_data.get('metadata', {})
             user_id = metadata.get('user_id')
             plan_type = metadata.get('plan_type')
-            
-            logger.info(f"Processing payment for user {user_id}, plan {plan_type}")
             
             if user_id and plan_type:
                 success = virtual_boy.activate_subscription(int(user_id), plan_type)
                 
                 if success:
                     logger.info(f"✅ Subscription activated for user {user_id}")
-                    sub_data = db_manager.get_subscription(int(user_id))
-                    logger.info(f"DATABASE CHECK: {sub_data.plan_type if sub_data else 'NOT FOUND'}")
                 else:
                     logger.error(f"❌ Failed to activate subscription for user {user_id}")
                 
