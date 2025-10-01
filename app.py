@@ -56,27 +56,17 @@ class VirtualBoyBot:
         self.max_history_length = 10
 
     def check_subscription(self, user_id):
-        """Проверка подписки из БАЗЫ ДАННЫХ с МАКСИМАЛЬНЫМ логированием"""
+        """Проверка подписки из БАЗЫ ДАННЫХ с ИСПРАВЛЕННОЙ логикой"""
         user_id_str = str(user_id)
         logger.info(f"🎯 === START SUBSCRIPTION CHECK ===")
         logger.info(f"🔍 Checking subscription for user: {user_id_str}")
         
-        # Сначала проверяем бесплатные сообщения
-        free_messages = db_manager.get_message_count(user_id)
-        logger.info(f"📊 Free messages count from DB: {free_messages}")
-        
-        if free_messages < 5:
-            remaining = 5 - free_messages
-            logger.info(f"🆓 FREE ACCESS: {remaining} messages left")
-            logger.info(f"🎯 === END SUBSCRIPTION CHECK: FREE ===")
-            return "free", remaining
-        
-        # Проверяем платную подписку - ДЕТАЛЬНАЯ ПРОВЕРКА
-        logger.info(f"🔎 Looking for subscription in database...")
+        # Сначала проверяем платную подписку - ЭТО ВАЖНО!
+        logger.info(f"🔎 Looking for PAID subscription in database...")
         sub_data = db_manager.get_subscription(user_id)
         
         if sub_data:
-            logger.info(f"✅ SUBSCRIPTION FOUND IN DB!")
+            logger.info(f"✅ PAID SUBSCRIPTION FOUND IN DB!")
             logger.info(f"📦 Plan: {sub_data.plan_type}")
             logger.info(f"📅 Activated: {sub_data.activated_at}")
             logger.info(f"📅 Expires: {sub_data.expires_at}")
@@ -96,19 +86,19 @@ class VirtualBoyBot:
                 logger.info(f"🎯 === END SUBSCRIPTION CHECK: PREMIUM ===")
                 return "premium", None
             else:
-                logger.info(f"❌ Subscription EXPIRED")
+                logger.info(f"❌ Paid subscription EXPIRED")
         else:
-            logger.info(f"❌ NO SUBSCRIPTION FOUND in database for user {user_id_str}")
-            # Давайте проверим ВСЕ подписки в базе для отладки
-            try:
-                db = SessionLocal()
-                all_subs = db.query(UserSubscription).all()
-                logger.info(f"📋 ALL SUBSCRIPTIONS IN DB: {len(all_subs)} total")
-                for sub in all_subs:
-                    logger.info(f"   - User {sub.user_id}: {sub.plan_type} until {sub.expires_at}")
-                db.close()
-            except Exception as e:
-                logger.info(f"⚠️ Could not list all subscriptions: {e}")
+            logger.info(f"❌ NO PAID SUBSCRIPTION FOUND")
+        
+        # Только если нет активной платной подписки - проверяем бесплатные сообщения
+        free_messages = db_manager.get_message_count(user_id)
+        logger.info(f"📊 Free messages count from DB: {free_messages}")
+        
+        if free_messages < 5:
+            remaining = 5 - free_messages
+            logger.info(f"🆓 FREE ACCESS: {remaining} messages left")
+            logger.info(f"🎯 === END SUBSCRIPTION CHECK: FREE ===")
+            return "free", remaining
         
         logger.info("❌ NO VALID SUBSCRIPTION - returning EXPIRED")
         logger.info(f"🎯 === END SUBSCRIPTION CHECK: EXPIRED ===")
