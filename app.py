@@ -8,6 +8,7 @@ import time
 from datetime import datetime, timedelta
 import redis
 import hashlib
+from payment import YookassaPayment
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,7 @@ YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
 # Хранилища (в продакшене заменить на базу)
 subscriptions = {}
 user_message_count = {}
+pending_payments = {}
 
 if not BOT_TOKEN:
     bot = None
@@ -79,6 +81,9 @@ class VirtualBoyBot:
             "Что тебя вдохновляет? 💫",
             "Какой твой любимый способ отдыха? 😴"
         ]
+        
+        # Для хранения ожидающих платежей
+        self.pending_payments = {}
 
     def add_to_history(self, user_id, role, content):
         """Добавление сообщения в историю"""
@@ -307,32 +312,88 @@ class VirtualBoyBot:
         keyboard = [
             [InlineKeyboardButton("🎯 Неделя - 299₽", callback_data=f"week_{user_id}")],
             [InlineKeyboardButton("💫 Месяц - 999₽", callback_data=f"month_{user_id}")],
+            [InlineKeyboardButton("ℹ️ Помощь по оплате", callback_data=f"help_{user_id}")],
             [InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_{user_id}")]
         ]
         return InlineKeyboardMarkup(keyboard)
 
     def handle_payment(self, user_id, plan_type):
-        """Обработка платежа"""
+        """Обработка платежа через ЮКассу"""
         try:
             if plan_type == "week":
-                price = 299
+                amount = 299
+                description = "Подписка на неделю"
                 days = 7
             else:
-                price = 999
+                amount = 999
+                description = "Подписка на месяц" 
+                days = 30
+            
+            # Создаем экземпляр платежной системы
+            yookassa = YookassaPayment(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
+            
+            # Создаем платеж
+            payment_result = yookassa.create_payment_link(
+                amount=amount,
+                description=description,
+                user_id=user_id,
+                plan_type=plan_type
+            )
+            
+            if payment_result["success"]:
+                # Сохраняем информацию о платеже
+                if user_id not in self.pending_payments:
+                    self.pending_payments[user_id] = {}
+                
+                self.pending_payments[user_id] = {
+                    "payment_id": payment_result["payment_id"],
+                    "plan_type": plan_type,
+                    "amount": amount,
+                    "created_at": datetime.now(),
+                    "status": "pending"
+                }
+                
+                return {
+                    "success": True,
+                    "message": payment_result["message"],
+                    "payment_id": payment_result["payment_id"]
+                }
+            else:
+                logger.error(f"Payment creation failed: {payment_result.get('error')}")
+                return {"success": False, "error": "Ошибка создания платежа"}
+                
+        except Exception as e:
+            logger.error(f"Payment error: {e}")
+            return {"success": False, "error": str(e)}
+
+    def activate_subscription(self, user_id, plan_type):
+        """Активация подписки после успешной оплаты"""
+        try:
+            if plan_type == "week":
+                days = 7
+            else:
                 days = 30
             
             subscriptions[user_id] = {
                 'plan': plan_type,
                 'activated_at': datetime.now(),
                 'expires_at': datetime.now() + timedelta(days=days),
-                'price': price
+                'payment_status': 'paid'
             }
             
-            logger.info(f"💰 Subscription activated for user {user_id}: {plan_type}")
+            # Отправляем уведомление пользователю
+            if bot:
+                bot.send_message(
+                    chat_id=user_id,
+                    text=f"✅ *Подписка активирована!*\n\n💫 Теперь у тебя полный доступ к боту на {days} дней! 🎉\n\nМожешь начинать общение! 🤗",
+                    parse_mode='Markdown'
+                )
+            
+            logger.info(f"Subscription activated for user {user_id}: {plan_type}")
             return True
             
         except Exception as e:
-            logger.error(f"Payment error: {e}")
+            logger.error(f"Error activating subscription: {e}")
             return False
 
     def process_message(self, update, context):
@@ -362,20 +423,21 @@ class VirtualBoyBot:
             # Команда подписки
             if user_message == '/subscribe':
                 keyboard = self.create_payment_keyboard(user_id)
+                
                 bot.send_message(
                     chat_id=chat_id,
-                    text="""💫 Выбери подписку:
+                    text="""💫 *Выбери подписку*
 
 🎯 **Неделя** - 299₽
 • Полный доступ к боту
 • Приоритетная поддержка
 
 💫 **Месяц** - 999₽  
-• Полный доступ к боту
+• Полный доступ к боту  
 • Приоритетная поддержка
 • Экономия 30%
 
-После оплаты подписка активируется автоматически!""",
+*После оплаты подписка активируется автоматически!* ✅""",
                     reply_markup=keyboard,
                     parse_mode='Markdown'
                 )
@@ -450,19 +512,38 @@ class VirtualBoyBot:
             if data.startswith('week_') or data.startswith('month_'):
                 plan_type = data.split('_')[0]
                 
-                success = self.handle_payment(user_id, plan_type)
+                # Создаем платеж в ЮКассе
+                payment_result = self.handle_payment(user_id, plan_type)
                 
-                if success:
+                if payment_result["success"]:
+                    # Отправляем ссылку на оплату
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=payment_result["message"],
+                        parse_mode='Markdown',
+                        disable_web_page_preview=False
+                    )
+                    
+                    # Обновляем оригинальное сообщение
                     query.edit_message_text(
-                        text=f"✅ Подписка активирована! {'Неделя' if plan_type == 'week' else 'Месяц'} доступа 🎉\n\nТеперь можно общаться без ограничений! 💫",
+                        text="💫 *Ссылка для оплаты отправлена!*\n\nПроверь сообщения выше 👆",
+                        parse_mode='Markdown',
                         reply_markup=None
                     )
                 else:
                     query.edit_message_text(
-                        text="❌ Ошибка при активации подписки. Попробуй еще раз или напиши в поддержку.",
+                        text="❌ *Ошибка при создании платежа*\n\nПопробуй еще раз или напиши в поддержку.",
+                        parse_mode='Markdown',
                         reply_markup=None
                     )
                     
+            elif data.startswith('help_'):
+                query.edit_message_text(
+                    text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Перейди по ссылке оплаты\n3. Оплати картой\n4. Подписка активируется автоматически!\n\n*Тестовая карта:*\n`5555 5555 5555 4477`\nСрок: 01/30, CVV: 123\n\nЕсли возникли проблемы - @support",
+                    parse_mode='Markdown',
+                    reply_markup=None
+                )
+                
             elif data.startswith('cancel_'):
                 query.edit_message_text(
                     text="💫 Хорошо! Если передумаешь - просто напиши /subscribe 😊",
@@ -505,13 +586,45 @@ def webhook():
             logger.error(f"Error in webhook: {e}")
             return jsonify({"status": "error", "message": str(e)}), 400
 
+@app.route('/yookassa-webhook', methods=['POST'])
+def yookassa_webhook():
+    """Вебхук для уведомлений от ЮКассы"""
+    try:
+        # Получаем данные от ЮКассы
+        event_json = request.get_json()
+        logger.info(f"Yookassa webhook received: {event_json}")
+        
+        # Проверяем подпись (в продакшене)
+        # ...
+        
+        event_type = event_json.get('event')
+        payment_data = event_json.get('object', {})
+        
+        if event_type == 'payment.succeeded':
+            # Платеж успешно завершен
+            payment_id = payment_data.get('id')
+            metadata = payment_data.get('metadata', {})
+            user_id = metadata.get('user_id')
+            plan_type = metadata.get('plan_type')
+            
+            if user_id and plan_type:
+                # Активируем подписку
+                virtual_boy.activate_subscription(int(user_id), plan_type)
+                logger.info(f"Subscription activated for user {user_id}")
+                
+        return jsonify({"status": "success"}), 200
+        
+    except Exception as e:
+        logger.error(f"Yookassa webhook error: {e}")
+        return jsonify({"status": "error"}), 400
+
 @app.route('/')
 def home():
     return jsonify({
         "status": "healthy",
         "bot": "Virtual Boy 🤗",
         "description": "Telegram бот с DeepSeek для общения с девушками",
-        "features": ["subscriptions", "deepseek", "conversation_memory", "personalization"]
+        "features": ["subscriptions", "deepseek", "conversation_memory", "personalization", "yookassa_payments"]
     })
 
 if __name__ == '__main__':
