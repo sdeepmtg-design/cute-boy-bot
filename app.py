@@ -385,7 +385,7 @@ class VirtualBoyBot:
             if bot:
                 bot.send_message(
                     chat_id=user_id,
-                    text=f"✅ *Подписка активирована!*\n\n💫 Теперь у тебя полный доступ к боту на {days} дней! 🎉\n\nМожешь начинать общение! 🤗",
+                    text=f"✅ **Оплата прошла успешно!**\n\n💫 Подписка активирована на {days} дней! Теперь можно общаться без ограничений! 🎉",
                     parse_mode='Markdown'
                 )
             
@@ -405,6 +405,14 @@ class VirtualBoyBot:
             user_name = update.message.from_user.first_name
             
             logger.info(f"📩 Message from {user_name} ({user_id}): {user_message}")
+
+            # Обработка возврата из оплаты
+            if user_message.startswith('/start payment_success_'):
+                bot.send_message(
+                    chat_id=chat_id,
+                    text="✅ Спасибо за оплату! Подписка активируется в течение минуты..."
+                )
+                return
 
             # Админ команда
             if user_message == '/noway147way147no147':
@@ -590,18 +598,13 @@ def webhook():
 def yookassa_webhook():
     """Вебхук для уведомлений от ЮКассы"""
     try:
-        # Получаем данные от ЮКассы
         event_json = request.get_json()
         logger.info(f"Yookassa webhook received: {event_json}")
-        
-        # Проверяем подпись (в продакшене)
-        # ...
         
         event_type = event_json.get('event')
         payment_data = event_json.get('object', {})
         
         if event_type == 'payment.succeeded':
-            # Платеж успешно завершен
             payment_id = payment_data.get('id')
             metadata = payment_data.get('metadata', {})
             user_id = metadata.get('user_id')
@@ -609,8 +612,12 @@ def yookassa_webhook():
             
             if user_id and plan_type:
                 # Активируем подписку
-                virtual_boy.activate_subscription(int(user_id), plan_type)
-                logger.info(f"Subscription activated for user {user_id}")
+                success = virtual_boy.activate_subscription(int(user_id), plan_type)
+                
+                if success:
+                    logger.info(f"✅ Subscription activated for user {user_id}")
+                else:
+                    logger.error(f"❌ Failed to activate subscription for user {user_id}")
                 
         return jsonify({"status": "success"}), 200
         

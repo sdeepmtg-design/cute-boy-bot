@@ -11,25 +11,19 @@ class YookassaPayment:
         self.shop_id = shop_id
         self.secret_key = secret_key
         self.base_url = "https://api.yookassa.ru/v3"
-        
-        # Для тестирования используем тестовые карты
-        self.test_cards = {
-            "success": "5555 5555 5555 4477",
-            "decline": "5555 5555 5555 4444"
-        }
 
     def create_payment(self, amount, description, user_id, plan_type):
         """Создание платежа в ЮКассе"""
         try:
-            # Генерируем уникальный ID платежа
             payment_id = str(uuid.uuid4())
+            amount_kopecks = str(int(amount * 100))
             
-            # Сумма в копейках
-            amount_rub = int(amount)
+            # ЗАМЕНИ virtual_boy_friend_bot на username твоего бота!
+            bot_username = "Boyfriendcute_bot"
             
             payload = {
                 "amount": {
-                    "value": str(amount_rub),
+                    "value": amount_kopecks,
                     "currency": "RUB"
                 },
                 "payment_method_data": {
@@ -37,7 +31,7 @@ class YookassaPayment:
                 },
                 "confirmation": {
                     "type": "redirect",
-                    "return_url": f"https://t.me/Boyfriendcute_bot?start=payment_success_{user_id}"
+                    "return_url": f"https://t.me/{bot_username}?start=payment_success_{user_id}"
                 },
                 "capture": True,
                 "description": description,
@@ -53,7 +47,6 @@ class YookassaPayment:
                 "Idempotence-Key": payment_id
             }
             
-            # Базовая авторизация
             auth = (self.shop_id, self.secret_key)
             
             response = requests.post(
@@ -117,10 +110,8 @@ class YookassaPayment:
         payment_result = self.create_payment(amount, description, user_id, plan_type)
         
         if payment_result["success"]:
-            # Создаем красивую ссылку для Telegram
             confirmation_url = payment_result["confirmation_url"]
             
-            # Для Telegram лучше использовать прямую ссылку
             payment_message = f"""
 💫 *Оплата подписки*
 
