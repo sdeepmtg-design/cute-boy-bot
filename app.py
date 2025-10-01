@@ -5,7 +5,7 @@ import logging
 import random
 from datetime import datetime, timedelta
 from payment import YookassaPayment
-from database import db_manager
+from database import db_manager, Base, engine
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -16,6 +16,13 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
+
+# Проверяем подключение к базе при старте
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ Database tables created/verified")
+except Exception as e:
+    logger.error(f"❌ Database error: {e}")
 
 if not BOT_TOKEN:
     bot = None
@@ -87,16 +94,19 @@ class VirtualBoyBot:
         
         # Проверяем платную подписку
         sub_data = db_manager.get_subscription(user_id)
-        logger.info(f"📦 Subscription data from DB: {sub_data}")
         
         if sub_data:
+            logger.info(f"📦 Subscription FOUND: {sub_data.plan_type}")
             logger.info(f"📅 Subscription expires at: {sub_data.expires_at}")
             logger.info(f"⏰ Current time: {datetime.now()}")
-            logger.info(f"✅ Subscription active: {sub_data.expires_at > datetime.now()}")
+            is_active = sub_data.expires_at > datetime.now()
+            logger.info(f"✅ Subscription active: {is_active}")
             
-            if sub_data.expires_at > datetime.now():
+            if is_active:
                 logger.info(f"💎 PREMIUM ACCESS: Plan {sub_data.plan_type}")
                 return "premium", None
+        else:
+            logger.info("📦 No subscription found in database")
         
         logger.info("❌ NO VALID SUBSCRIPTION")
         return "expired", None
@@ -153,6 +163,10 @@ class VirtualBoyBot:
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
             logger.info(f"💾 SUBSCRIPTION SAVED TO DATABASE: {subscription.plan_type} until {subscription.expires_at}")
+            
+            # Проверяем что сохранилось
+            check_sub = db_manager.get_subscription(user_id)
+            logger.info(f"🔍 VERIFICATION: Subscription in DB - {check_sub.plan_type if check_sub else 'NOT FOUND'}")
             
             # Отправляем уведомление пользователю
             if bot:
@@ -418,7 +432,7 @@ def yookassa_webhook():
                 if success:
                     logger.info(f"✅ Subscription activated for user {user_id}")
                     sub_data = db_manager.get_subscription(int(user_id))
-                    logger.info(f"DATABASE CHECK: {sub_data.plan_type if sub_data else 'None'}")
+                    logger.info(f"DATABASE CHECK: {sub_data.plan_type if sub_data else 'NOT FOUND'}")
                 else:
                     logger.error(f"❌ Failed to activate subscription for user {user_id}")
                 
@@ -434,7 +448,7 @@ def home():
         "status": "healthy",
         "bot": "Virtual Boy 🤗",
         "description": "Telegram бот с DeepSeek для общения с девушками",
-        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "sqlite_database"]
+        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "postgresql_database"]
     })
 
 if __name__ == '__main__':

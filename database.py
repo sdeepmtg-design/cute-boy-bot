@@ -4,8 +4,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 
-# Используем SQLite (файловая база)
-DATABASE_URL = "sqlite:///bot_database.db"
+# Получаем URL базы данных из переменных окружения
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///bot_database.db')
+
+# Заменяем начало URL для PostgreSQL на Render
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -37,9 +41,10 @@ class DatabaseManager:
     
     def get_subscription(self, user_id):
         user_id_str = str(user_id)
-        return self.db.query(UserSubscription).filter(
+        subscription = self.db.query(UserSubscription).filter(
             UserSubscription.user_id == user_id_str
         ).first()
+        return subscription
     
     def update_subscription(self, user_id, plan_type, days):
         user_id_str = str(user_id)
