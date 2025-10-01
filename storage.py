@@ -5,7 +5,7 @@ from datetime import datetime
 class Storage:
     def __init__(self):
         self.data_file = "subscriptions.json"
-        self.load_data()
+        self.data = self.load_data()
 
     def load_data(self):
         """Загрузка данных из файла"""
@@ -55,12 +55,18 @@ class Storage:
 
     def update_subscription(self, user_id, subscription_data):
         """Обновление подписки пользователя"""
-        self.data['subscriptions'][str(user_id)] = subscription_data
+        user_id_str = str(user_id)
+        if 'subscriptions' not in self.data:
+            self.data['subscriptions'] = {}
+        self.data['subscriptions'][user_id_str] = subscription_data
         self.save_data()
 
     def update_message_count(self, user_id, count):
         """Обновление счетчика сообщений"""
-        self.data['user_message_count'][str(user_id)] = count
+        user_id_str = str(user_id)
+        if 'user_message_count' not in self.data:
+            self.data['user_message_count'] = {}
+        self.data['user_message_count'][user_id_str] = count
         self.save_data()
 
 # Глобальный экземпляр хранилища
