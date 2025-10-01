@@ -16,7 +16,7 @@ class YookassaPayment:
         """Создание платежа в ЮКассе"""
         try:
             payment_id = str(uuid.uuid4())
-            amount_kopecks = str(int(amount * 100))
+            amount_kopecks = str(int(amount))
             
             # ЗАМЕНИ virtual_boy_friend_bot на username твоего бота!
             bot_username = "Boyfriendcute_bot"
