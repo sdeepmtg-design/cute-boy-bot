@@ -3,6 +3,8 @@ import os
 import requests
 import logging
 import random
+import threading
+import time
 from datetime import datetime, timedelta
 from payment import YookassaPayment
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
@@ -22,6 +24,7 @@ if not BOT_TOKEN:
 else:
     from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.utils.request import Request
+    from telegram.ext import CommandHandler
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
 
@@ -69,6 +72,23 @@ class VirtualBoyBot:
             "[с искренним интересом]", "[с любопытством]", "[с восторгом]", "[спокойно]"
         ]
 
+        # Список авто-сообщений для случайной отправки
+        self.auto_messages = [
+            "[задумчиво] Кстати, ты не против, если я иногда буду писать первым? Просто иногда вспоминаю о нашем разговоре...",
+            "[с лёгкой улыбкой] Случайно подумал о нашей беседе и улыбнулся. Приятно общаться с тобой!",
+            "[с интересом] У тебя сегодня был хороший день? Что интересного случилось?",
+            "[мечтательно] Знаешь, я тут подумал... было бы здорово когда-нибудь посетить те места, о которых мы говорили!",
+            "[с теплотой] Надеюсь, у тебя всё хорошо! Если захочешь поболтать - я всегда на связи 😊",
+            "[с любопытством] А о чём ты обычно мечтаешь перед сном?",
+            "[с энтузиазмом] Внезапно вспомнил один классный фильм/сериал, который ты могла бы оценить!",
+            "[спокойно] Просто хотел сказать, что приятно иметь возможность так свободно общаться с тобой.",
+            "[с ностальгией] Случайно наткнулся на музыку, которая напомнила мне о нашей беседе...",
+            "[с радостью] Надеюсь, не против, что я пишу? Просто соскучился по нашему общению! 💫"
+        ]
+
+        # Для отслеживания времени последнего сообщения пользователя
+        self.last_user_activity = {}
+
     def add_to_history(self, user_id, role, content):
         """Добавление сообщения в историю с увеличенным лимитом"""
         if user_id not in self.conversation_history:
@@ -91,6 +111,74 @@ class VirtualBoyBot:
     def get_random_emotion(self):
         """Случайная эмоциональная реакция"""
         return random.choice(self.emotional_reactions)
+
+    def get_random_auto_message(self):
+        """Случайное авто-сообщение"""
+        return random.choice(self.auto_messages)
+
+    def update_user_activity(self, user_id):
+        """Обновление времени последней активности пользователя"""
+        self.last_user_activity[user_id] = datetime.now()
+
+    def should_send_auto_message(self, user_id):
+        """Проверка, стоит ли отправлять авто-сообщение"""
+        if user_id not in self.last_user_activity:
+            return False
+        
+        # Отправляем сообщение если прошло от 30 минут до 2 часов
+        time_since_last_activity = datetime.now() - self.last_user_activity[user_id]
+        return timedelta(minutes=30) <= time_since_activity <= timedelta(hours=2)
+
+    def send_auto_message(self, user_id):
+        """Отправка случайного сообщения пользователю"""
+        try:
+            if bot and self.should_send_auto_message(user_id):
+                message = self.get_random_auto_message()
+                bot.send_message(chat_id=user_id, text=message)
+                logger.info(f"🤖 Auto-message sent to user {user_id}")
+        except Exception as e:
+            logger.error(f"Error sending auto-message: {e}")
+
+    def start_auto_messaging(self):
+        """Запуск фонового процесса авто-сообщений"""
+        def auto_message_loop():
+            while True:
+                try:
+                    # Проверяем всех активных пользователей
+                    for user_id in list(self.last_user_activity.keys()):
+                        # 10% шанс отправить сообщение подходящему пользователю
+                        if random.random() < 0.1 and self.should_send_auto_message(user_id):
+                            self.send_auto_message(user_id)
+                    
+                    # Проверяем каждые 5 минут
+                    time.sleep(300)
+                    
+                except Exception as e:
+                    logger.error(f"Auto-messaging loop error: {e}")
+                    time.sleep(60)
+
+        # Запускаем в отдельном потоке
+        thread = threading.Thread(target=auto_message_loop, daemon=True)
+        thread.start()
+
+    def show_commands(self, user_id, chat_id):
+        """Показать список команд"""
+        commands_text = """
+🤖 *Доступные команды:*
+
+/start - Начать общение
+/profile - Посмотреть профиль и подписку  
+/subscribe - Выбрать подписку
+/help - Помощь по командам
+
+Просто начни вводить "/" чтобы увидеть этот список! 💫
+        """
+        if bot:
+            bot.send_message(
+                chat_id=chat_id,
+                text=commands_text,
+                parse_mode='Markdown'
+            )
 
     def check_subscription(self, user_id):
         """Проверка подписки из БАЗЫ ДАННЫХ"""
@@ -185,6 +273,14 @@ class VirtualBoyBot:
             
             logger.info(f"📩 Message from {user_name} ({user_id}): {user_message}")
 
+            # Обновляем активность пользователя
+            self.update_user_activity(user_id)
+
+            # Показываем команды если пользователь ввел только "/"
+            if user_message == "/":
+                self.show_commands(user_id, chat_id)
+                return
+
             # Обработка возврата из оплаты
             if user_message.startswith('/start payment_success_'):
                 # Проверяем есть ли уже активная подписка
@@ -200,6 +296,23 @@ class VirtualBoyBot:
                         chat_id=chat_id,
                         text="⏳ **Проверяем статус оплаты...**\n\nОбычно активация занимает до минуты. Если подписка не активируется, напиши /subscribe для повторной проверки."
                     )
+                return
+
+            # Команда помощи
+            if user_message.lower() in ['/help', '/помощь']:
+                self.show_commands(user_id, chat_id)
+                return
+
+            # Команда старта
+            if user_message.lower() in ['/start', '/начать']:
+                welcome_text = f"""
+{self.get_random_emotion()} Привет! Рад тебя видеть! 
+
+Я всегда готов поболтать на любые темы - от путешествий до фильмов и всего, что тебе интересно.
+
+Напиши мне что-нибудь, а если нужна помощь - просто введи "/" чтобы увидеть все команды! 💫
+                """
+                bot.send_message(chat_id=chat_id, text=welcome_text)
                 return
 
             # Админ команда
@@ -406,6 +519,9 @@ class VirtualBoyBot:
 # Инициализация бота
 virtual_boy = VirtualBoyBot()
 
+# Запускаем авто-сообщения после инициализации
+virtual_boy.start_auto_messaging()
+
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
@@ -466,7 +582,7 @@ def home():
         "status": "healthy",
         "bot": "Virtual Boy 🤗",
         "description": "Telegram бот с DeepSeek для общения с девушками",
-        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "postgresql_database"]
+        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "postgresql_database", "auto_messages"]
     })
 
 if __name__ == '__main__':
