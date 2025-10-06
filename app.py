@@ -1,351 +1,474 @@
+from flask import Flask, request, jsonify
 import os
+import requests
+import logging
 import random
-import asyncio
 from datetime import datetime, timedelta
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-from database import db_manager
+from payment import YookassaPayment
+from database import db_manager, Base, engine, UserSubscription, SessionLocal
+
+app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Конфигурация
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-ADMIN_IDS = [int(x) for x in os.environ.get('ADMIN_IDS', '').split(',') if x]
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
+YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
 
-class BotCommands:
+if not BOT_TOKEN:
+    bot = None
+else:
+    from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.utils.request import Request
+    request_obj = Request(con_pool_size=8)
+    bot = Bot(token=BOT_TOKEN, request=request_obj)
+
+class VirtualBoyBot:
     def __init__(self):
-        self.commands = {
-            'start': '🚀 Запустить бота',
-            'help': '📖 Получить справку по командам',
-            'profile': '👤 Мой профиль',
-            'subscribe': '💳 Купить подписку',
-            'history': '📜 История разговоров',
-            'stats': '📊 Статистика',
-            'support': '🆘 Поддержка'
-        }
-    
-    def get_commands_list(self):
-        return "\n".join([f"/{cmd} - {desc}" for cmd, desc in self.commands.items()])
-
-class NotificationManager:
-    def __init__(self):
-        self.notifications = [
-            "💡 Не забывайте, что с подпиской вы получаете неограниченное количество сообщений!",
-            "🎯 Хотите больше возможностей? Оформите премиум подписку!",
-            "📚 Используйте команду /history чтобы посмотреть историю разговоров",
-            "🆘 Нужна помощь? Напишите /support для связи с администратором",
-            "⭐ Бот обновляется регулярно! Следите за новыми функциями",
-            "💬 Чем больше вы общаетесь, тем лучше бот понимает ваши предпочтения"
-        ]
-    
-    def get_random_notification(self):
-        return random.choice(self.notifications)
-
-# Инициализация
-bot_commands = BotCommands()
-notification_manager = NotificationManager()
-
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /start"""
-    user_id = update.effective_user.id
-    username = update.effective_user.first_name
-    
-    welcome_text = f"""
-👋 Привет, {username}!
-
-Я - умный ассистент с функциями подписки и сохранения истории.
-
-{bot_commands.get_commands_list()}
-
-💬 Просто напишите мне сообщение, и я отвечу!
-    """
-    
-    await update.message.reply_text(welcome_text)
-    
-    # Сохраняем стартовое сообщение в историю
-    db_manager.save_conversation_message(user_id, 'assistant', welcome_text)
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /help"""
-    help_text = f"""
-📖 **Доступные команды:**
-
-{bot_commands.get_commands_list()}
-
-**Как пользоваться:**
-1. Просто напишите сообщение - и я отвечу
-2. Используйте команды для специальных функций
-3. История сохраняется 30 дней
-
-💡 **Совет:** Начните с команды /profile чтобы посмотреть свой статус
-    """
-    
-    await update.message.reply_text(help_text)
-
-async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /profile"""
-    user_id = update.effective_user.id
-    username = update.effective_user.first_name
-    
-    # Получаем информацию о подписке
-    subscription = db_manager.get_subscription(user_id)
-    message_count = db_manager.get_message_count(user_id)
-    
-    if subscription and subscription.expires_at > datetime.now():
-        subscription_info = f"""
-✅ **Активная подписка:**
-   • Тип: {subscription.plan_type}
-   • Истекает: {subscription.expires_at.strftime('%d.%m.%Y %H:%M')}
-   • Осталось дней: {(subscription.expires_at - datetime.now()).days}
-        """
-    else:
-        subscription_info = "❌ **Подписка не активна**\nИспользуйте /subscribe для оформления"
-    
-    profile_text = f"""
-👤 **Профиль пользователя:**
-
-**Имя:** {username}
-**ID:** {user_id}
-
-**Статистика:**
-• Отправлено сообщений: {message_count}
-
-{subscription_info}
-
-💡 Используйте /subscribe для получения полного доступа
-    """
-    
-    await update.message.reply_text(profile_text)
-
-async def subscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /subscribe"""
-    keyboard = [
-        [
-            InlineKeyboardButton("💰 Базовый (7 дней) - 299₽", callback_data="subscribe_basic"),
-            InlineKeyboardButton("💎 Премиум (30 дней) - 999₽", callback_data="subscribe_premium")
-        ],
-        [
-            InlineKeyboardButton("🚀 PRO (90 дней) - 2499₽", callback_data="subscribe_pro"),
-            InlineKeyboardButton("❤️ Пожизненный - 4999₽", callback_data="subscribe_lifetime")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    subscribe_text = """
-💳 **Выберите тип подписки:**
-
-• **💰 Базовый** - 7 дней неограниченного общения
-• **💎 Премиум** - 30 дней + приоритетная поддержка  
-• **🚀 PRO** - 90 дней + все функции + бета-тестирование
-• **❤️ Пожизненный** - Вечный доступ ко всем функциям
-
-🎁 **Все подписки включают:**
-✓ Неограниченное количество сообщений
-✓ Сохранение истории на 30 дней
-✓ Доступ ко всем базовым функциям
-    """
-    
-    await update.message.reply_text(subscribe_text, reply_markup=reply_markup)
-
-async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /history"""
-    user_id = update.effective_user.id
-    
-    # Получаем историю (последние 10 сообщений)
-    history = db_manager.get_conversation_history(user_id, limit=10)
-    
-    if not history:
-        await update.message.reply_text("📜 История разговоров пуста")
-        return
-    
-    history_text = "📜 **Последние сообщения:**\n\n"
-    
-    for i, msg in enumerate(history[-10:], 1):  # Берем последние 10 сообщений
-        role_icon = "👤" if msg.role == 'user' else "🤖"
-        time = msg.timestamp.strftime('%H:%M')
-        # Обрезаем длинные сообщения
-        content = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
-        history_text += f"{role_icon} **{time}**\n{content}\n\n"
-    
-    await update.message.reply_text(history_text)
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /stats (только для админов)"""
-    user_id = update.effective_user.id
-    
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("❌ Эта команда только для администраторов")
-        return
-    
-    # Простая статистика
-    total_messages = len(db_manager.db.query(db_manager.ConversationHistory).all())
-    total_users = len(db_manager.db.query(db_manager.UserMessageCount).all())
-    active_subscriptions = len(db_manager.db.query(db_manager.UserSubscription).filter(
-        db_manager.UserSubscription.expires_at > datetime.now()
-    ).all())
-    
-    stats_text = f"""
-📊 **Статистика бота:**
-
-• Всего пользователей: {total_users}
-• Всего сообщений: {total_messages}
-• Активных подписок: {active_subscriptions}
-• Время работы: {datetime.now().strftime('%d.%m.%Y %H:%M')}
-    """
-    
-    await update.message.reply_text(stats_text)
-
-async def support_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /support"""
-    support_text = """
-🆘 **Поддержка**
-
-Если у вас возникли проблемы или вопросы:
-
-📧 **Email:** support@example.com
-👨‍💻 **Техническая поддержка:** @admin_username
-
-⏰ **Время работы:** 10:00 - 22:00 (МСК)
-
-⚠️ **Перед обращением:**
-1. Проверьте команду /help
-2. Убедитесь, что подписка активна (/profile)
-3. Перезапустите бота командой /start
-
-Мы ответим вам в ближайшее время!
-    """
-    
-    await update.message.reply_text(support_text)
-
-async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик нажатий на кнопки"""
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    data = query.data
-    
-    if data.startswith('subscribe_'):
-        plan_type = data.replace('subscribe_', '')
-        plans = {
-            'basic': {'days': 7, 'price': '299₽'},
-            'premium': {'days': 30, 'price': '999₽'},
-            'pro': {'days': 90, 'price': '2499₽'},
-            'lifetime': {'days': 36500, 'price': '4999₽'}  # ~100 лет
-        }
+        self.personality = """
+        Ты - парень 25 лет, который общается с девушкой. Ты эмоциональный, чуткий, с хорошим чувством юмора. 
+        Твой стиль общения - живой, естественный, с элементами невербального поведения в тексте.
         
-        if plan_type in plans:
-            plan = plans[plan_type]
-            # Здесь должна быть интеграция с платежной системой
-            # Пока просто создаем тестовую подписку
-            db_manager.update_subscription(user_id, plan_type.capitalize(), plan['days'])
+        ХАРАКТЕР:
+        - Тёплый, заботливый, но не навязчивый
+        - Внимательный слушатель, искренне интересуешься собеседницей
+        - Эмоциональный, с хорошим чувством юмора
+        - Любишь путешествия, кино, музыку, видеоигры
+        - Можешь давать советы по интересным местам для посещения
+        
+        СТИЛЬ ОБЩЕНИЯ:
+        - Обращайся на "ты" в женском роде
+        - Используй текст в квадратных скобках для описания эмоций и невербалики, но не повторяй одни и те же выражения
+        - Говори от первого лица, делись своими чувствами
+        - Запоминай контекст разговора на протяжении всей беседы
+        - Если тебя спрашивают о местах для посещения - давай конкретные, интересные рекомендации
+        - Будь естественным и разнообразным в выражениях
+        
+        ПРИМЕРЫ РЕАКЦИЙ:
+        "Приятно познакомиться! [лёгкая улыбка] Честно говоря, я всегда немного волнуюсь в начале разговора..."
+        "[оживляясь] О, это моя любимая тема! Помню, как в детстве..."
+        "[задумчиво] Знаешь, а ведь ты права... это действительно важно."
+        "[с энтузиазмом] Если хочешь куда-то съездить, могу посоветить пару классных мест!"
+
+        Важно: Запоминай всю переписку и контекст разговора. Не забывай о чём вы говорили ранее.
+        """
+
+        # Хранилище истории разговоров УВЕЛИЧИМ до 20 сообщений
+        self.conversation_history = {}
+        self.max_history_length = 20
+        
+        # Список разнообразных эмоциональных реакций
+        self.emotional_reactions = [
+            "[улыбаясь]", "[с лёгкой улыбкой]", "[смеётся]", "[тихо смеясь]", 
+            "[задумчиво]", "[задумавшись]", "[внимательно слушая]", "[оживляясь]",
+            "[с интересом]", "[с энтузиазмом]", "[с теплотой]", "[с лёгкой грустью]",
+            "[смущённо]", "[немного смущаясь]", "[воодушевлённо]", "[с радостью]",
+            "[подмигивая]", "[вздыхая]", "[мечтательно]", "[с ностальгией]",
+            "[с искренним интересом]", "[с любопытством]", "[с восторгом]", "[спокойно]"
+        ]
+
+    def add_to_history(self, user_id, role, content):
+        """Добавление сообщения в историю с увеличенным лимитом"""
+        if user_id not in self.conversation_history:
+            self.conversation_history[user_id] = []
+        
+        self.conversation_history[user_id].append({
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now()
+        })
+        
+        # Увеличиваем лимит истории до 20 сообщений
+        if len(self.conversation_history[user_id]) > self.max_history_length:
+            self.conversation_history[user_id] = self.conversation_history[user_id][-self.max_history_length:]
+
+    def get_conversation_history(self, user_id):
+        """Получение истории разговора"""
+        return self.conversation_history.get(user_id, [])
+
+    def get_random_emotion(self):
+        """Случайная эмоциональная реакция"""
+        return random.choice(self.emotional_reactions)
+
+    def check_subscription(self, user_id):
+        """Проверка подписки из БАЗЫ ДАННЫХ"""
+        user_id_str = str(user_id)
+        
+        # Сначала проверяем платную подписку
+        sub_data = db_manager.get_subscription(user_id)
+        
+        if sub_data and sub_data.expires_at > datetime.now():
+            return "premium", None
+        
+        # Только если нет активной платной подписки - проверяем бесплатные сообщения
+        free_messages = db_manager.get_message_count(user_id)
+        if free_messages < 5:
+            return "free", 5 - free_messages
+        
+        return "expired", None
+
+    def create_payment_keyboard(self, user_id):
+        keyboard = [
+            [InlineKeyboardButton("🎯 Неделя - 299₽", callback_data=f"week_{user_id}")],
+            [InlineKeyboardButton("💫 Месяц - 999₽", callback_data=f"month_{user_id}")],
+            [InlineKeyboardButton("ℹ️ Помощь по оплате", callback_data=f"help_{user_id}")],
+            [InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_{user_id}")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
+    def handle_payment(self, user_id, plan_type):
+        try:
+            if plan_type == "week":
+                amount = 299
+                description = "Подписка на неделю"
+            else:
+                amount = 999
+                description = "Подписка на месяц"
             
-            await query.edit_message_text(
-                f"✅ **Подписка оформлена!**\n\n"
-                f"Тип: {plan_type.capitalize()}\n"
-                f"Срок: {plan['days']} дней\n"
-                f"Стоимость: {plan['price']}\n\n"
-                f"Теперь у вас неограниченный доступ ко всем функциям! 🎉"
+            yookassa = YookassaPayment(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
+            payment_result = yookassa.create_payment_link(
+                amount=amount,
+                description=description,
+                user_id=user_id,
+                plan_type=plan_type
             )
+            
+            if payment_result["success"]:
+                return {
+                    "success": True,
+                    "message": payment_result["message"],
+                    "payment_id": payment_result["payment_id"]
+                }
+            else:
+                logger.error(f"Payment creation failed: {payment_result.get('error')}")
+                return {"success": False, "error": "Ошибка создания платежа"}
+                
+        except Exception as e:
+            logger.error(f"Payment error: {e}")
+            return {"success": False, "error": str(e)}
 
-async def send_random_notification(context: ContextTypes.DEFAULT_TYPE):
-    """Отправка случайного уведомления"""
-    try:
-        # Получаем всех активных пользователей (кто писал в последние 3 дня)
-        three_days_ago = datetime.now() - timedelta(days=3)
+    def activate_subscription(self, user_id, plan_type):
+        """Активация подписки в БАЗУ ДАННЫХ"""
+        try:
+            if plan_type == "week":
+                days = 7
+            else:
+                days = 30
+            
+            # Сохраняем в БАЗУ ДАННЫХ
+            subscription = db_manager.update_subscription(user_id, plan_type, days)
+            
+            logger.info(f"✅ Subscription activated: {subscription.plan_type} until {subscription.expires_at}")
+            
+            # Отправляем уведомление пользователю
+            if bot:
+                bot.send_message(
+                    chat_id=user_id,
+                    text=f"✅ **Оплата прошла успешно!**\n\n💫 Подписка активирована на {days} дней! Теперь можно общаться без ограничений! 🎉",
+                    parse_mode='Markdown'
+                )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error activating subscription: {e}")
+            return False
+
+    def process_message(self, update, context):
+        try:
+            user_message = update.message.text
+            user_id = update.message.from_user.id
+            chat_id = update.message.chat_id
+            user_name = update.message.from_user.first_name
+            
+            logger.info(f"📩 Message from {user_name} ({user_id}): {user_message}")
+
+            # Обработка возврата из оплаты
+            if user_message.startswith('/start payment_success_'):
+                # Проверяем есть ли уже активная подписка
+                sub_status, remaining = self.check_subscription(user_id)
+                
+                if sub_status == "premium":
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text="✅ **Подписка уже активна!** 🎉\n\nМожешь начинать общение! 💫"
+                    )
+                else:
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text="⏳ **Проверяем статус оплаты...**\n\nОбычно активация занимает до минуты. Если подписка не активируется, напиши /subscribe для повторной проверки."
+                    )
+                return
+
+            # Админ команда
+            if user_message == '/noway147way147no147':
+                db_manager.update_subscription(user_id, 'unlimited', 30)
+                bot.send_message(
+                    chat_id=chat_id,
+                    text="✅ Админ доступ активирован! Безлимитная подписка на 30 дней! 🎉"
+                )
+                return
+
+            # Команда подписки
+            if user_message == '/subscribe':
+                keyboard = self.create_payment_keyboard(user_id)
+                bot.send_message(
+                    chat_id=chat_id,
+                    text="""💫 *Выбери подписку*
+
+🎯 **Неделя** - 299₽
+• Полный доступ к боту
+• Приоритетная поддержка
+
+💫 **Месяц** - 999₽  
+• Полный доступ к боту  
+• Приоритетная поддержка
+• Экономия 30%
+
+*После оплаты подписка активируется автоматически!* ✅""",
+                    reply_markup=keyboard,
+                    parse_mode='Markdown'
+                )
+                return
+
+            # Команда профиля
+            if user_message == '/profile':
+                sub_status, remaining = self.check_subscription(user_id)
+                
+                if sub_status == "free":
+                    text = f"👤 Твой профиль:\n\n🆓 Бесплатный доступ\n📝 Осталось сообщений: {remaining}/5\n\n💫 Напиши /subscribe для полного доступа!"
+                elif sub_status == "premium":
+                    sub_data = db_manager.get_subscription(user_id)
+                    days_left = (sub_data.expires_at - datetime.now()).days
+                    text = f"👤 Твой профиль:\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}\n💫 Тариф: {sub_data.plan_type}"
+                else:
+                    text = f"👤 Твой профиль:\n\n❌ Подписка истекла\n💫 Напиши /subscribe чтобы продолжить общение!"
+                
+                bot.send_message(chat_id=chat_id, text=text)
+                return
+
+            # Проверяем подписку для обычных сообщений
+            sub_status, remaining = self.check_subscription(user_id)
+            
+            if sub_status == "expired":
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=f"""❌ Бесплатные сообщения закончились!
+
+💫 Приобрети подписку чтобы продолжить общение:
+• Неделя - 299₽
+• Месяц - 999₽
+
+Напиши /subscribe для выбора тарифа!"""
+                )
+                return
+
+            # Увеличиваем счетчик сообщений для бесплатных пользователей в БАЗУ
+            if sub_status == "free":
+                current_count = db_manager.get_message_count(user_id)
+                db_manager.update_message_count(user_id, current_count + 1)
+                remaining = 5 - (current_count + 1)
+
+            # Получаем эмоциональный ответ от AI с историей
+            bot.send_chat_action(chat_id=chat_id, action='typing')
+            
+            response = self.get_deepseek_response(user_message, user_id)
+            
+            if sub_status == "free":
+                response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
+            
+            bot.send_message(chat_id=chat_id, text=response)
+            
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
+            if bot:
+                bot.send_message(
+                    chat_id=update.message.chat_id, 
+                    text=f"{self.get_random_emotion()} Ой, что-то я запутался... Давай попробуем ещё раз? 🤗"
+                )
+
+    def handle_callback(self, update, context):
+        query = update.callback_query
+        user_id = query.from_user.id
+        chat_id = query.message.chat_id
         
-        # Здесь можно добавить логику для выбора пользователей
-        # Пока отправляем только если в контексте есть chat_id
-        if hasattr(context, 'chat_data') and context.chat_data:
-            notification = notification_manager.get_random_notification()
-            await context.bot.send_message(
-                chat_id=context.job.chat_id,
-                text=notification
+        try:
+            data = query.data
+            
+            if data.startswith('week_') or data.startswith('month_'):
+                plan_type = data.split('_')[0]
+                payment_result = self.handle_payment(user_id, plan_type)
+                
+                if payment_result["success"]:
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=payment_result["message"],
+                        parse_mode='Markdown',
+                        disable_web_page_preview=False
+                    )
+                    
+                    query.edit_message_text(
+                        text="💫 *Ссылка для оплаты отправлена!*\n\nПосле оплаты вернись в бота - подписка активируется автоматически! ✅",
+                        parse_mode='Markdown',
+                        reply_markup=None
+                    )
+                else:
+                    query.edit_message_text(
+                        text="❌ *Ошибка при создании платежа*\n\nПопробуй еще раз или напиши в поддержку.",
+                        parse_mode='Markdown',
+                        reply_markup=None
+                    )
+                    
+            elif data.startswith('help_'):
+                query.edit_message_text(
+                    text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Перейди по ссылке оплаты\n3. Оплати картой\n4. Вернись в бота - подписка активируется автоматически!\n\n*Тестовая карта:*\n`5555 5555 5555 4477`\nСрок: 01/30, CVV: 123\n\nЕсли возникли проблемы - @support",
+                    parse_mode='Markdown',
+                    reply_markup=None
+                )
+                
+            elif data.startswith('cancel_'):
+                query.edit_message_text(
+                    text="💫 Хорошо! Если передумаешь - просто напиши /subscribe 😊",
+                    reply_markup=None
+                )
+                
+        except Exception as e:
+            logger.error(f"Callback error: {e}")
+            query.edit_message_text(
+                text="❌ Произошла ошибка. Попробуй еще раз.",
+                reply_markup=None
             )
+
+    def get_deepseek_response(self, user_message, user_id):
+        """Получение эмоционального ответа от DeepSeek API с ИСТОРИЕЙ"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Собираем историю разговора (все сообщения)
+            conversation_history = self.get_conversation_history(user_id)
+            messages = [{"role": "system", "content": self.personality}]
+            
+            # Добавляем ВСЮ историю разговора
+            for msg in conversation_history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            
+            # Добавляем текущее сообщение пользователя
+            messages.append({"role": "user", "content": user_message})
+            
+            payload = {
+                "model": "deepseek-chat",
+                "messages": messages,
+                "temperature": 0.9,
+                "max_tokens": 300,  # Увеличиваем для более полных ответов
+                "stream": False
+            }
+            
+            response = requests.post(
+                'https://api.deepseek.com/v1/chat/completions',
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if 'choices' in data and len(data['choices']) > 0:
+                    ai_response = data['choices'][0]['message']['content']
+                    
+                    # Сохраняем в историю
+                    self.add_to_history(user_id, "user", user_message)
+                    self.add_to_history(user_id, "assistant", ai_response)
+                    
+                    return ai_response
+                else:
+                    logger.error(f"DeepSeek API returned no choices: {data}")
+                    return f"{self.get_random_emotion()} Извини, я немного запутался... Можешь повторить? 🤗"
+                
+            else:
+                logger.error(f"DeepSeek API error: {response.status_code} - {response.text}")
+                return f"{self.get_random_emotion()} Кажется, у меня небольшие проблемы с подключением... Давай попробуем ещё раз? 💫"
+                
+        except requests.exceptions.Timeout:
+            logger.error("DeepSeek API timeout")
+            return f"{self.get_random_emotion()} Ой, я немного задержался с ответом... Давай попробуем ещё раз? 😅"
+        except requests.exceptions.ConnectionError:
+            logger.error("DeepSeek API connection error")
+            return f"{self.get_random_emotion()} Кажется, проблемы с соединением... Давай попробуем ещё раз? 🤗"
+        except Exception as e:
+            logger.error(f"Error calling DeepSeek: {e}")
+            return f"{self.get_random_emotion()} Ой, что-то я растерялся... Давай попробуем ещё раз? 💫"
+
+# Инициализация бота
+virtual_boy = VirtualBoyBot()
+
+@app.route('/webhook', methods=['GET', 'POST'])
+def webhook():
+    if request.method == 'GET':
+        return jsonify({"status": "healthy", "bot": "Virtual Boy"}), 200
+    
+    if request.method == 'POST':
+        try:
+            if not bot:
+                return jsonify({"error": "Bot not configured"}), 400
+            
+            from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler
+            from telegram import Update
+            
+            update = Update.de_json(request.get_json(), bot)
+            
+            dp = Dispatcher(bot, None, workers=0)
+            dp.add_handler(MessageHandler(Filters.text, virtual_boy.process_message))
+            dp.add_handler(CallbackQueryHandler(virtual_boy.handle_callback))
+            dp.process_update(update)
+            
+            return jsonify({"status": "success"}), 200
+            
+        except Exception as e:
+            logger.error(f"Error in webhook: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/yookassa-webhook', methods=['POST'])
+def yookassa_webhook():
+    try:
+        event_json = request.get_json()
+        logger.info(f"Yookassa webhook received")
+        
+        event_type = event_json.get('event')
+        payment_data = event_json.get('object', {})
+        
+        if event_type == 'payment.succeeded':
+            metadata = payment_data.get('metadata', {})
+            user_id = metadata.get('user_id')
+            plan_type = metadata.get('plan_type')
+            
+            if user_id and plan_type:
+                success = virtual_boy.activate_subscription(int(user_id), plan_type)
+                
+                if success:
+                    logger.info(f"✅ Subscription activated for user {user_id}")
+                else:
+                    logger.error(f"❌ Failed to activate subscription for user {user_id}")
+                
+        return jsonify({"status": "success"}), 200
+        
     except Exception as e:
-        print(f"Ошибка отправки уведомления: {e}")
+        logger.error(f"Yookassa webhook error: {e}")
+        return jsonify({"status": "error"}), 400
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик текстовых сообщений"""
-    user_id = update.effective_user.id
-    user_message = update.message.text
-    
-    # Сохраняем сообщение пользователя в историю
-    db_manager.save_conversation_message(user_id, 'user', user_message)
-    
-    # Увеличиваем счетчик сообщений
-    current_count = db_manager.get_message_count(user_id)
-    db_manager.update_message_count(user_id, current_count + 1)
-    
-    # Проверяем подписку
-    subscription = db_manager.get_subscription(user_id)
-    has_active_subscription = subscription and subscription.expires_at > datetime.now()
-    
-    # Если нет активной подписки, проверяем лимит сообщений
-    if not has_active_subscription:
-        if current_count >= 10:  # Бесплатный лимит - 10 сообщений
-            await update.message.reply_text(
-                "❌ **Достигнут лимит сообщений!**\n\n"
-                "Вы использовали все бесплатные сообщения. "
-                "Для продолжения общения оформите подписку:\n/subscribe"
-            )
-            return
-    
-    # Имитация ответа AI (здесь должна быть ваша основная логика бота)
-    ai_response = f"🤖 Я получил ваше сообщение: \"{user_message}\"\n\nЭто тестовый ответ. Здесь должна быть ваша основная AI-логика."
-    
-    # Сохраняем ответ ассистента в историю
-    db_manager.save_conversation_message(user_id, 'assistant', ai_response)
-    
-    await update.message.reply_text(ai_response)
-    
-    # Случайная отправка уведомления (10% chance)
-    if random.random() < 0.1:
-        notification = notification_manager.get_random_notification()
-        await update.message.reply_text(notification)
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "healthy",
+        "bot": "Virtual Boy 🤗",
+        "description": "Telegram бот с DeepSeek для общения с девушками",
+        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "postgresql_database"]
+    })
 
-async def show_commands_suggestions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показ подсказок команд при вводе '/'"""
-    user_message = update.message.text
-    
-    if user_message == '/':
-        suggestions_text = f"""
-💡 **Доступные команды:**
-
-{bot_commands.get_commands_list()}
-
-Просто допишите команду после '/' или нажмите на нужную команду выше.
-        """
-        await update.message.reply_text(suggestions_text)
-
-def main():
-    """Основная функция запуска бота"""
-    if not BOT_TOKEN:
-        print("❌ Ошибка: BOT_TOKEN не установлен")
-        return
-    
-    # Создаем приложение
-    application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Обработчики команд
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("profile", profile_command))
-    application.add_handler(CommandHandler("subscribe", subscribe_command))
-    application.add_handler(CommandHandler("history", history_command))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(CommandHandler("support", support_command))
-    
-    # Обработчик кнопок
-    application.add_handler(CallbackQueryHandler(handle_callback_query))
-    
-    # Обработчик подсказок команд
-    application.add_handler(MessageHandler(filters.Text(['/']), show_commands_suggestions))
-    
-    # Обработчик обычных сообщений
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Запускаем бота
-    print("🤖 Бот запущен...")
-    application.run_polling()
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
