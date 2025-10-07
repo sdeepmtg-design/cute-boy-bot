@@ -4,7 +4,6 @@ import requests
 import logging
 import random
 import time
-import threading
 from datetime import datetime, timedelta
 from payment import YookassaPayment
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
@@ -27,6 +26,12 @@ else:
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
 
+# Стикеры для разных эмоций
+STICKERS = {
+    'laugh': 'CAACAgUAAxkBAAMLaOVwjWUZp1NP2BGuwKmjRF6OLI4AAjQEAAJYdclX8q2oxkbXFAE2BA',  # 😆
+    'haha': 'CAACAgUAAxkBAAMNaOVwk-ocq67z8o18DiiqeVzoETIAAtgVAALtIDBVnHCyMhcNFKE2BA',   # 🤣
+}
+
 class VirtualBoyBot:
     def __init__(self):
         self.personality = """
@@ -47,6 +52,7 @@ class VirtualBoyBot:
         - Запоминай контекст разговора на протяжении всей беседы
         - Если тебя спрашивают о местах для посещения - давай конкретные, интересные рекомендации
         - Будь естественным и разнообразным в выражениях
+        - Иногда можешь сам начинать разговор или задавать вопросы
         
         ПРИМЕРЫ РЕАКЦИЙ:
         "Приятно познакомиться! [лёгкая улыбка] Честно говоря, я всегда немного волнуюсь в начале разговора..."
@@ -57,7 +63,7 @@ class VirtualBoyBot:
         Важно: Запоминай всю переписку и контекст разговора. Не забывай о чём вы говорили ранее.
         """
 
-        # Хранилище истории разговоров
+        # Хранилище истории разговоров УВЕЛИЧИМ до 20 сообщений
         self.conversation_history = {}
         self.max_history_length = 20
         
@@ -70,70 +76,23 @@ class VirtualBoyBot:
             "[подмигивая]", "[вздыхая]", "[мечтательно]", "[с ностальгией]",
             "[с искренним интересом]", "[с любопытством]", "[с восторгом]", "[спокойно]"
         ]
-
-        # Стикеры для отправки (ID популярных стикеров)
-        self.sticker_ids = [
-            "CAACAgIAAxkBAAEL", # Замени на реальные ID стикеров
-            "CAACAgQAAxkBAAEL",
-            "CAACAgUAAxkBAAEL"
+        
+        # Время последнего сообщения от пользователя для авто-сообщений
+        self.last_user_activity = {}
+        
+        # Вопросы для авто-сообщений
+        self.auto_questions = [
+            "Кстати, как твой день проходит?",
+            "О чём ты сейчас думаешь?",
+            "Есть планы на выходные?",
+            "Слушаешь что-нибудь интересное последнее время?",
+            "Смотрела что-то увлекательное?",
+            "Хотела бы куда-нибудь поехать?",
+            "Чем увлекаешься в свободное время?",
+            "Какая твоя мечта?",
+            "Что тебя вдохновляет?",
+            "Какой твой любимый способ отдыха?"
         ]
-
-        # Для спонтанных сообщений
-        self.active_users = set()
-        self.spontaneous_messages = [
-            "Эй, как твои дела? 😊",
-            "Случайно подумал о нашем вчерашнем разговоре...",
-            "У тебя сегодня хороший день? 💫",
-            "Привет! Чем занимаешься? 🤗",
-            "Хотел спросить... как твоё настроение? 🌟"
-        ]
-
-    def setup_bot_commands(self):
-        """Настройка команд бота для меню /"""
-        if bot:
-            try:
-                from telegram import BotCommand
-                commands = [
-                    BotCommand("start", "🚀 Начать общение"),
-                    BotCommand("subscribe", "💫 Выбрать подписку"),
-                    BotCommand("profile", "👤 Мой профиль"),
-                    BotCommand("sticker", "🎭 Отправить стикер"),
-                    BotCommand("test_spontaneous", "🔔 Тест спонтанных сообщений")
-                ]
-                bot.set_my_commands(commands)
-                logger.info("✅ Bot commands set successfully")
-            except Exception as e:
-                logger.error(f"Error setting bot commands: {e}")
-
-    def start_spontaneous_messaging(self):
-        """Запуск фонового потока для спонтанных сообщений"""
-        def spontaneous_worker():
-            while True:
-                try:
-                    # Ждем 5-10 минут перед следующим сообщением
-                    time.sleep(random.randint(300, 600))  # 5-10 минут
-                    
-                    if self.active_users:
-                        user_id = random.choice(list(self.active_users))
-                        message = random.choice(self.spontaneous_messages)
-                        
-                        # Проверяем подписку пользователя
-                        sub_status, _ = self.check_subscription(user_id)
-                        if sub_status == "premium":  # Только для премиум пользователей
-                            bot.send_message(
-                                chat_id=user_id,
-                                text=f"{self.get_random_emotion()} {message}"
-                            )
-                            logger.info(f"💫 Sent spontaneous message to user {user_id}")
-                            
-                except Exception as e:
-                    logger.error(f"Error in spontaneous messaging: {e}")
-                    time.sleep(60)  # Ждем минуту при ошибке
-
-        # Запускаем в фоновом потоке
-        thread = threading.Thread(target=spontaneous_worker, daemon=True)
-        thread.start()
-        logger.info("✅ Spontaneous messaging started")
 
     def add_to_history(self, user_id, role, content):
         """Добавление сообщения в историю с увеличенным лимитом"""
@@ -158,29 +117,40 @@ class VirtualBoyBot:
         """Случайная эмоциональная реакция"""
         return random.choice(self.emotional_reactions)
 
-    def send_sticker(self, chat_id, sticker_id=None):
+    def send_sticker(self, chat_id, sticker_type='laugh'):
         """Отправка стикера"""
         try:
-            if sticker_id:
+            sticker_id = STICKERS.get(sticker_type)
+            if sticker_id and bot:
                 bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-            else:
-                # Если ID не указан, отправляем случайный стикер из набора
-                if self.sticker_ids:
-                    random_sticker = random.choice(self.sticker_ids)
-                    bot.send_sticker(chat_id=chat_id, sticker=random_sticker)
-                else:
-                    # Если нет стикеров, отправляем эмодзи
-                    bot.send_message(chat_id=chat_id, text="🎭 Вот тебе виртуальный стикер! 😊")
-            
-            return True
+                return True
         except Exception as e:
             logger.error(f"Error sending sticker: {e}")
-            # Если стикер не отправляется, отправляем текстовое сообщение
-            bot.send_message(
-                chat_id=chat_id,
-                text=f"{self.get_random_emotion()} Хотел отправить стикер, но что-то пошло не так... 😅"
-            )
-            return False
+        return False
+
+    def check_auto_message(self, user_id, chat_id):
+        """Проверка необходимости авто-сообщения"""
+        try:
+            now = time.time()
+            last_activity = self.last_user_activity.get(user_id, 0)
+            
+            # Если прошло больше 2 минут с последнего сообщения пользователя
+            if now - last_activity > 120:  # 2 минуты
+                # 30% шанс отправить авто-сообщение
+                if random.random() < 0.3:
+                    question = random.choice(self.auto_questions)
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=f"{self.get_random_emotion()} {question}"
+                    )
+                    # Отправляем стикер с 50% шансом
+                    if random.random() < 0.5:
+                        self.send_sticker(chat_id, random.choice(['laugh', 'haha']))
+                    return True
+                    
+        except Exception as e:
+            logger.error(f"Error in auto message: {e}")
+        return False
 
     def check_subscription(self, user_id):
         """Проверка подписки из БАЗЫ ДАННЫХ"""
@@ -252,9 +222,6 @@ class VirtualBoyBot:
             
             logger.info(f"✅ Subscription activated: {subscription.plan_type} until {subscription.expires_at}")
             
-            # Добавляем пользователя в активные для спонтанных сообщений
-            self.active_users.add(user_id)
-            
             # Отправляем уведомление пользователю
             if bot:
                 bot.send_message(
@@ -278,30 +245,8 @@ class VirtualBoyBot:
             
             logger.info(f"📩 Message from {user_name} ({user_id}): {user_message}")
 
-            # Добавляем пользователя в активные
-            self.active_users.add(user_id)
-
-            # Команда отправки стикера
-            if user_message == '/sticker':
-                self.send_sticker(chat_id)
-                return
-
-            # Тест спонтанных сообщений (только для админа)
-            if user_message == '/test_spontaneous':
-                # Проверяем подписку
-                sub_status, _ = self.check_subscription(user_id)
-                if sub_status == "premium":
-                    message = random.choice(self.spontaneous_messages)
-                    bot.send_message(
-                        chat_id=chat_id,
-                        text=f"🔔 Тестовое спонтанное сообщение: {message}"
-                    )
-                else:
-                    bot.send_message(
-                        chat_id=chat_id,
-                        text="❌ Эта функция доступна только премиум пользователям!"
-                    )
-                return
+            # Обновляем время последней активности
+            self.last_user_activity[user_id] = time.time()
 
             # Обработка возврата из оплаты
             if user_message.startswith('/start payment_success_'):
@@ -320,14 +265,59 @@ class VirtualBoyBot:
                     )
                 return
 
+            # Команда помощи - показываем все команды
+            if user_message == '/help' or user_message == '/start':
+                help_text = """🤖 *Доступные команды:*
+
+/start - Начать общение
+/help - Показать это сообщение
+/profile - Посмотреть свой профиль и подписку  
+/subscribe - Выбрать подписку
+/test_sticker - Проверить отправку стикеров
+/test_auto - Проверить авто-сообщения
+
+💫 Просто напиши мне что-нибудь, и я отвечу!"""
+                
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=help_text,
+                    parse_mode='Markdown'
+                )
+                return
+
+            # Тест стикеров
+            if user_message == '/test_sticker':
+                bot.send_message(
+                    chat_id=chat_id,
+                    text="Проверяем стикеры... 😊"
+                )
+                self.send_sticker(chat_id, 'laugh')
+                time.sleep(1)
+                self.send_sticker(chat_id, 'haha')
+                return
+
+            # Тест авто-сообщений
+            if user_message == '/test_auto':
+                bot.send_message(
+                    chat_id=chat_id,
+                    text="Тестируем авто-сообщения... Жди сообщение через 10 секунд! ⏰"
+                )
+                # Принудительно запускаем авто-сообщение через 10 секунд
+                context.job_queue.run_once(
+                    lambda context: self.force_auto_message(user_id, chat_id),
+                    10
+                )
+                return
+
             # Админ команда
             if user_message == '/noway147way147no147':
                 db_manager.update_subscription(user_id, 'unlimited', 30)
-                self.active_users.add(user_id)
                 bot.send_message(
                     chat_id=chat_id,
                     text="✅ Админ доступ активирован! Безлимитная подписка на 30 дней! 🎉"
                 )
+                # Отправляем праздничный стикер
+                self.send_sticker(chat_id, 'laugh')
                 return
 
             # Команда подписки
@@ -368,24 +358,6 @@ class VirtualBoyBot:
                 bot.send_message(chat_id=chat_id, text=text)
                 return
 
-            # Команда start
-            if user_message == '/start':
-                bot.send_message(
-                    chat_id=chat_id,
-                    text=f"""{self.get_random_emotion()} Привет! Рад тебя видеть! 🤗
-
-Я твой виртуальный собеседник. Можешь просто написать что-нибудь, и мы начнём общаться!
-
-Доступные команды:
-/start - начать общение
-/subscribe - выбрать подписку  
-/profile - мой профиль
-/sticker - отправить стикер
-
-💫 Первые 5 сообщений - бесплатно!"""
-                )
-                return
-
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
             
@@ -413,6 +385,10 @@ class VirtualBoyBot:
             
             response = self.get_deepseek_response(user_message, user_id)
             
+            # Иногда отправляем стикер (20% шанс)
+            if random.random() < 0.2:
+                self.send_sticker(chat_id, random.choice(['laugh', 'haha']))
+            
             if sub_status == "free":
                 response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
             
@@ -425,6 +401,15 @@ class VirtualBoyBot:
                     chat_id=update.message.chat_id, 
                     text=f"{self.get_random_emotion()} Ой, что-то я запутался... Давай попробуем ещё раз? 🤗"
                 )
+
+    def force_auto_message(self, user_id, chat_id):
+        """Принудительная отправка авто-сообщения для тестирования"""
+        question = random.choice(self.auto_questions)
+        bot.send_message(
+            chat_id=chat_id,
+            text=f"{self.get_random_emotion()} {question}"
+        )
+        self.send_sticker(chat_id, random.choice(['laugh', 'haha']))
 
     def handle_callback(self, update, context):
         query = update.callback_query
@@ -501,7 +486,7 @@ class VirtualBoyBot:
                 "model": "deepseek-chat",
                 "messages": messages,
                 "temperature": 0.9,
-                "max_tokens": 300,
+                "max_tokens": 300,  # Увеличиваем для более полных ответов
                 "stream": False
             }
             
@@ -542,12 +527,6 @@ class VirtualBoyBot:
 
 # Инициализация бота
 virtual_boy = VirtualBoyBot()
-
-# Настраиваем команды бота при запуске
-virtual_boy.setup_bot_commands()
-
-# Запускаем спонтанные сообщения
-virtual_boy.start_spontaneous_messaging()
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -609,7 +588,7 @@ def home():
         "status": "healthy",
         "bot": "Virtual Boy 🤗",
         "description": "Telegram бот с DeepSeek для общения с девушками",
-        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "postgresql_database", "stickers", "spontaneous_messages"]
+        "features": ["subscriptions", "deepseek", "conversation_memory", "yookassa_payments", "postgresql_database"]
     })
 
 if __name__ == '__main__':
