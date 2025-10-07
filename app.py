@@ -29,7 +29,66 @@ else:
 # Стикеры для разных эмоций
 STICKERS = {
     'laugh': 'CAACAgUAAxkBAAMLaOVwjWUZp1NP2BGuwKmjRF6OLI4AAjQEAAJYdclX8q2oxkbXFAE2BA',  # 😆
-    'haha': 'CAACAgUAAxkBAAMNaOVwk-ocq67z8o18DiiqeVzoETIAAtgVAALtIDBVnHCyMhcNFKE2BA',   # 🤣
+    'haha': 'CAACAgUAAxkBAAMNaOVwk-ocq67z8o18DiiqeVzoETIAAtgVAALtIDBVnHCyMkbXFAE2BA',   # 🤣
+    'haha2': 'CAACAgUAAxkBAAMPaOVwluKnOJlR7LhcKTLtVGS2rhAAAlwIAAJhLGFU3X2RwyBQui02BA', # 🤣
+    'laugh2': 'CAACAgUAAxkBAAMRaOVwmpczEO9zyabBtOolNv6ES2IAAj4FAALO4NFXlAFvncKMOnI2BA', # 😆
+    'smile': 'CAACAgUAAxkBAAMTaOVwnCtTxwABI2ZlFIxHUbF0tRX9AAJIBgAC6qPYV9-RdK9DxL27NgQ', # 😃
+    'thinking': 'CAACAgUAAxkBAAMVaOVwoc-42szx4QOqA8ue2_kqPXQAAlEGAAKkbdBXN_vBCmyNvTc2BA', # 🤨
+    'laugh3': 'CAACAgUAAxkBAAMXaOVwpFo4mEI3Q15mt_RdYMHpYQsAAhkFAAJTHhlUx7qMwUdQrKA2BA', # 😂
+    'clap': 'CAACAgUAAxkBAAMZaOVwpjX6zqvuYUlbRXgleJlO-PAAAlkFAAL_D9BXlbrCo5StI6g2BA', # 👏
+    'moon': 'CAACAgUAAxkBAAMbaOVwqAPY9Z2ZMGhyj1LahL1o_hAAAgkEAALHw3lUjKASq5URxKE2BA', # 🌚
+    'laugh4': 'CAACAgUAAxkBAAMdaOVwqz4rBPUKqnfqt4Lc46seIX4AAqAGAAKEyglUYSfzTKHq8eM2BA', # 😂
+    'cocktail': 'CAACAgUAAxkBAAMfaOVwruDkHBu4ByREiXmsaXasAQUAAj0EAALiy9FXPH81TkjuSVQ2BA', # 🍸
+    'salt': 'CAACAgUAAxkBAAMhaOVwsAPiZFciIuIidNmROJMWL_UAAhAEAAKPbNFXfxekfyJjMYM2BA', # 🧂
+    'relieved': 'CAACAgUAAxkBAAMjaOVwswzEhwj6Q2AN1WfUd0U-e8QAAssIAAIXaZBVaasDzLMRIr82BA', # 😌
+    'crying': 'CAACAgUAAxkBAAMnaOVwt1X88GnFDsN6yPKBGtYB3vUAAqUGAAItj-hXZkzTnPfY-Lk2BA', # 😭
+    'coffee': 'CAACAgUAAxkBAAMlaOVwteYsByq5q6QUB1jzcYVqhqcAAr4EAAJpqvBXE54FxymvpUU2BA', # ☕️
+    'crying2': 'CAACAgUAAxkBAAMpaOVwuoiXB2zXCyHL-65qOb_O6CAAAqkEAAL6cJBUBAgsHkAohMw2BA', # 😭
+    'skull': 'CAACAgUAAxkBAAMraOVwvOmDVlvtYQZBJqBhuq7JfRsAAroHAAJmY1lUt2uGZCFtvFo2BA', # 💀
+    'smoking': 'CAACAgUAAxkBAAMtaOVwv-XMkJ5ZyMs3t5lAtk2UxrwAAjQGAAJg0PhXbZnVo4N8Wnw2BA', # 🚬
+    'mind_blown': 'CAACAgUAAxkBAAMvaOVwwxWuu5FnnsOkeQRxvFD7exUAAm8FAAI9POFXqr0H_kh8jCU2BA', # 🤯
+    'haha3': 'CAACAgUAAxkBAAMxaOVwxkCu0zpeA51bTZ0zo_9gOhoAAnEFAAKJtghU0hVICaDlFJ82BA', # 🤣
+    'fire': 'CAACAgUAAxkBAAMzaOV07KjoPkqTShVeExuwziKmORUAAvYLAALsoSlVN8FuIWfrVZM2BA', # 🔥
+    'fries': 'CAACAgUAAxkBAAM1aOV0_Lh4K2oqN1CK9g_ByhrtNiIAAh8HAAKa2flXlS2md0bammQ2BA', # 🍟
+    'scream': 'CAACAgUAAxkBAAM3aOV0_1W18nu7-6hoh5qcZ2FGxzQAAs0KAAIg59lVCi2RCriwT9A2BA', # 😱
+    'smirk': 'CAACAgUAAxkBAAM5aOV1BVr5FCdcCoOqZkQAAWztEB5NAAIXCAAC3-EAAVaCiOfb9qzqzzYE', # 😏
+    'fear': 'CAACAgUAAxkBAAM7aOV1CFR0GwABwOwzcM0wJGoFdY30AAKXCgACV4cpVWWy2wd1FJI4NgQ', # 😨
+    'grin': 'CAACAgUAAxkBAAM9aOV1DnbobFVVxWOR6MbwKCPvNr8AAkYFAALFctlX0O9u4pVuENE2BA', # 😁
+    'dancing': 'CAACAgUAAxkBAAM_aOV1FNjbWkn-9Z1DaEW4MUDUl5AAArQFAALYI_FXpiYOakfl3u82BA', # 🕺
+    'laugh5': 'CAACAgUAAxkBAANBaOV1F6_oj5b5gJN7CLpljQwQzn4AAsUFAALSs6BUwFpaItxIwHk2BA', # 😂
+    'moyai': 'CAACAgUAAxkBAANDaOV1HFVrX46orckc5WKkmjiEGosAAmwEAAJ8txFW6a19nBQM5Jo2BA', # 🗿
+    'crying3': 'CAACAgUAAxkBAANFaOV1HuGyHJ-fTpZBqQRctu63q8gAAsMFAAJPF2FUed3lJcbaSbo2BA', # 😭
+    'brain': 'CAACAgUAAxkBAANHaOV1IcE-E4O_O26bAAEHvV7dEWhsAAIvBQACdDvxV44Hc91-8uH2NgQ', # 🧠
+    'cool': 'CAACAgUAAxkBAANJaOV1Jcik46P1JI5oaVyZRStvgiUAAtwKAAJuLShV9vkd0B8JLR82BA', # 😎
+    'pondering': 'CAACAgUAAxkBAANLaOV1J87qAgABmuhhxwjbEaW8-l8bAALFBAACa2cYVEPTSfCboscONgQ', # 🧐
+    'wave': 'CAACAgUAAxkBAANNaOV1Khgf-HCaLL1qW30i74dugwQAAlkDAAJ94dlXAAHaBcOJgPuuNgQ', # 👋
+    'anxious': 'CAACAgUAAxkBAANPaOV1LYMmqPIUdMfN-VeeU_FqlxYAAh0FAAL53thXYWNfK99_mSY2BA', # 😰
+    'nauseated': 'CAACAgUAAxkBAANRaOV1M6DmX6j_EXoM7GROovkvF0sAAqUFAAIjK9FXFmGW_Wf6apg2BA', # 🤢
+    'ok_hand': 'CAACAgUAAxkBAANTaOV1N_DSD_RErE82zJ1yaUkbFfcAApsEAALygeFXA0Wl3FvY7wI2BA', # 👌
+    'eyes': 'CAACAgUAAxkBAANVaOV1Obm4Bd9I4Bq2poQMTCQ0nfAAAscFAAJILdlXCeMAAd-HOx8pNgQ', # 👀
+    'clap2': 'CAACAgUAAxkBAANXaOV1PNaL3dtp_gQeAAH2cFVbRXOtAALCDwACVCZ4VPTM2pdKNmxDNgQ', # 👏
+    'eyes2': 'CAACAgUAAxkBAANZaOV1PsbI6I7df21Sb3VrDCi0LhIAAswNAAJwm3FUnB7UWr__qW02BA', # 👀
+    'smile2': 'CAACAgUAAxkBAANbaOV1RNOUsfpscsWpLzsWctUpSPAAAocPAAIQq6BULmUWUceQ9l02BA', # 😄
+    'blank': 'CAACAgUAAxkBAANdaOV1RtyM8zIWqnNq5Gfynch-bKQAAlcSAALeK6lUwrQcCyjCuLE2BA', # 🫥
+    'whiskey': 'CAACAgUAAxkBAANfaOV1SRPYZREIMtGsgd88ICcVqukAAqQPAAJ7r6FUD3SuP4QzIb42BA', # 🥃
+    'blush': 'CAACAgUAAxkBAANhaOV1TIyAGe9mO2gXQ-x0_mZpoC4AAl4PAAKgCqlUkYi61v_Robk2BA', # 😊
+    'crying4': 'CAACAgUAAxkBAANjaOV1Tvz3j7yGdzImS14sOHdM_CIAAnETAAKni6lUAWYX7973Ieg2BA', # 😭
+    'unamused': 'CAACAgUAAxkBAANlaOV1Uc47vIWNAXDZXThxlxPW0ooAAokRAALESqlUnGaXb9u1rvY2BA', # 😒
+    'thumbsup': 'CAACAgUAAxkBAANpaOV1W53WkN-KZ0QMW1RXTURHnogAAm0RAAKY7alU-DkmZIoo7os2BA', # 👍
+    'laugh6': 'CAACAgUAAxkBAANtaOV1YepQ2-LVDEcAATw7ES7NkzMHAAI4EwAC1cvIVOdN2mKhiGSaNgQ', # 😂
+    'grin2': 'CAACAgUAAxkBAANvaOV1ZAIyQoH2gG0HJBDrimTbW04AAtsRAAJm8clUmEcsxPLhLBM2BA', # 😁
+    'smirk2': 'CAACAgUAAxkBAANxaOV1a8FUlSQ-yO-BTlTyJLUQPHsAAkcQAAI8JtlU0If0xEJwN9o2BA', # 😏
+    'fire2': 'CAACAgUAAxkBAANzaOV1b5x9Sv8cWO3c_eyZqS32k1AAAmcVAAI7PQFV-fnWOLEqsNw2BA', # 🔥
+    'astonished': 'CAACAgUAAxkBAAN1aOV1dfJolvgrfbxUMZdYlZvbseMAAuYPAAK5hglVlOyVVM3_6DQ2BA', # 😲
+    'music': 'CAACAgUAAxkBAAN3aOV1dm6wzH4mUlkoT8vvyZRHpbcAAgQQAAKHFQhVDA6AvfnwA7o2BA', # 🎶
+    'scream2': 'CAACAgUAAxkBAAN5aOV1fS230i7n_xWH5I0EPDJwN0QAAkUPAAK1ivlV6a4LlVT2Fqo2BA', # 😱
+    'smoking2': 'CAACAgUAAxkBAAN9aOV1hA451Ez9C551ZCm_5y6FmYIAArcSAAKqs_FVBwTuF3EGdOk2BA', # 🚬
+    'angry': 'CAACAgUAAxkBAAN_aOV1hTvnMWs_2rzUz4rg2-T0DNkAAkQPAALvovlVNRS7yp7Sly42BA', # 😡
+    'no_gesture': 'CAACAgUAAxkBAAOBaOV1iJ5jcG3SP3hDKEoyLjQQ7JcAAgUSAAKRNclWZJqlrxnOuU42BA', # 🙅‍♂
+    'thinking2': 'CAACAgUAAxkBAAODaOV1iyf4Tp2I_FqJ1MEElNZiPT4AAucRAALLy_BVh6CY7cuuTSA2BA', # 🤔
+    'point_left': 'CAACAgUAAxkBAAOFaOV1jQVIkvf7t398Ndh8K8nL7LsAAv0TAAOu0VaRLcWmdHpxUDYE', # 👈
+    'thumbsup2': 'CAACAgUAAxkBAAOHaOV1j5BvaYemJFFLstXrL2gUrzgAAv0SAAIkGdBWWSWTZ3swBTM2BA', # 👍
+    'tired': 'CAACAgUAAxkBAAOJaOV1kXDw4IuTPSv9xxGugl8DAe8AAv0PAAK94MhWfjwn-M8jsoM2BA', # 😫
 }
 
 class VirtualBoyBot:
@@ -117,10 +176,15 @@ class VirtualBoyBot:
         """Случайная эмоциональная реакция"""
         return random.choice(self.emotional_reactions)
 
-    def send_sticker(self, chat_id, sticker_type='laugh'):
+    def send_sticker(self, chat_id, sticker_type=None):
         """Отправка стикера"""
         try:
-            sticker_id = STICKERS.get(sticker_type)
+            if sticker_type is None:
+                # Случайный стикер из всех доступных
+                sticker_id = random.choice(list(STICKERS.values()))
+            else:
+                sticker_id = STICKERS.get(sticker_type)
+                
             if sticker_id and bot:
                 bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
                 return True
@@ -143,9 +207,9 @@ class VirtualBoyBot:
                         chat_id=chat_id,
                         text=f"{self.get_random_emotion()} {question}"
                     )
-                    # Отправляем стикер с 50% шансом
+                    # Отправляем случайный стикер с 50% шансом
                     if random.random() < 0.5:
-                        self.send_sticker(chat_id, random.choice(['laugh', 'haha']))
+                        self.send_sticker(chat_id)
                     return True
                     
         except Exception as e:
@@ -291,9 +355,10 @@ class VirtualBoyBot:
                     chat_id=chat_id,
                     text="Проверяем стикеры... 😊"
                 )
-                self.send_sticker(chat_id, 'laugh')
-                time.sleep(1)
-                self.send_sticker(chat_id, 'haha')
+                # Отправляем несколько случайных стикеров
+                for _ in range(3):
+                    self.send_sticker(chat_id)
+                    time.sleep(1)
                 return
 
             # Тест авто-сообщений
@@ -317,7 +382,7 @@ class VirtualBoyBot:
                     text="✅ Админ доступ активирован! Безлимитная подписка на 30 дней! 🎉"
                 )
                 # Отправляем праздничный стикер
-                self.send_sticker(chat_id, 'laugh')
+                self.send_sticker(chat_id, 'fire')
                 return
 
             # Команда подписки
@@ -385,9 +450,13 @@ class VirtualBoyBot:
             
             response = self.get_deepseek_response(user_message, user_id)
             
-            # Иногда отправляем стикер (20% шанс)
+            # Список типов стикеров для случайного выбора
+            sticker_types = ['laugh', 'haha', 'haha2', 'laugh2', 'laugh3', 'laugh4', 'laugh5', 'laugh6', 
+                           'smile', 'grin', 'grin2', 'blush', 'cool', 'fire', 'clap', 'mind_blown']
+            
+            # Иногда отправляем случайный стикер (20% шанс)
             if random.random() < 0.2:
-                self.send_sticker(chat_id, random.choice(['laugh', 'haha']))
+                self.send_sticker(chat_id, random.choice(sticker_types))
             
             if sub_status == "free":
                 response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
@@ -409,7 +478,7 @@ class VirtualBoyBot:
             chat_id=chat_id,
             text=f"{self.get_random_emotion()} {question}"
         )
-        self.send_sticker(chat_id, random.choice(['laugh', 'haha']))
+        self.send_sticker(chat_id)
 
     def handle_callback(self, update, context):
         query = update.callback_query
