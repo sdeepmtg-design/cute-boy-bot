@@ -22,6 +22,7 @@ if not BOT_TOKEN:
     bot = None
 else:
     from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler
     from telegram.utils.request import Request
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
@@ -220,6 +221,9 @@ class VirtualBoyBot:
 
     def analyze_message_emotion(self, text):
         """Анализ эмоциональной окраски сообщения для подбора стикера"""
+        if not text:
+            return None
+            
         text_lower = text.lower()
         
         # Грустные темы
@@ -305,20 +309,25 @@ class VirtualBoyBot:
 
     def check_subscription(self, user_id):
         """Проверка подписки из БАЗЫ ДАННЫХ"""
-        user_id_str = str(user_id)
-        
-        # Сначала проверяем платную подписку
-        sub_data = db_manager.get_subscription(user_id)
-        
-        if sub_data and sub_data.expires_at > datetime.now():
-            return "premium", None
-        
-        # Только если нет активной платной подписки - проверяем бесплатные сообщения
-        free_messages = db_manager.get_message_count(user_id)
-        if free_messages < 5:
-            return "free", 5 - free_messages
-        
-        return "expired", None
+        try:
+            user_id_str = str(user_id)
+            
+            # Сначала проверяем платную подписку
+            sub_data = db_manager.get_subscription(user_id)
+            
+            if sub_data and sub_data.expires_at > datetime.now():
+                return "premium", None
+            
+            # Только если нет активной платной подписки - проверяем бесплатные сообщения
+            free_messages = db_manager.get_message_count(user_id)
+            if free_messages < 5:
+                return "free", 5 - free_messages
+            
+            return "expired", None
+        except Exception as e:
+            logger.error(f"Error checking subscription: {e}")
+            # В случае ошибки считаем, что подписка истекла
+            return "expired", None
 
     def create_payment_keyboard(self, user_id):
         keyboard = [
@@ -462,10 +471,8 @@ class VirtualBoyBot:
                     text="Тестируем авто-сообщения... Жди сообщение через 10 секунд! ⏰"
                 )
                 # Принудительно запускаем авто-сообщение через 10 секунд
-                context.job_queue.run_once(
-                    lambda context: self.force_auto_message(user_id, chat_id),
-                    10
-                )
+                time.sleep(10)
+                self.force_auto_message(user_id, chat_id)
                 return
 
             # Админ команда
@@ -495,7 +502,7 @@ class VirtualBoyBot:
 • Приоритетная поддержка
 • Экономия 30%
 
-*После оплаты подписка активируется автоматически!* ✅""",
+*После оплата подписка активируется автоматически!* ✅""",
                     reply_markup=keyboard,
                     parse_mode='Markdown'
                 )
@@ -728,6 +735,12 @@ class VirtualBoyBot:
 # Инициализация бота
 virtual_boy = VirtualBoyBot()
 
+# Создаем диспетчер для обработки обновлений
+if bot:
+    dp = Dispatcher(bot, None, workers=0, use_context=True)
+    dp.add_handler(MessageHandler(Filters.text | Filters.sticker, virtual_boy.process_message))
+    dp.add_handler(CallbackQueryHandler(virtual_boy.handle_callback))
+
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
@@ -738,14 +751,7 @@ def webhook():
             if not bot:
                 return jsonify({"error": "Bot not configured"}), 400
             
-            from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler
-            from telegram import Update
-            
             update = Update.de_json(request.get_json(), bot)
-            
-            dp = Dispatcher(bot, None, workers=0)
-            dp.add_handler(MessageHandler(Filters.text | Filters.sticker, virtual_boy.process_message))
-            dp.add_handler(CallbackQueryHandler(virtual_boy.handle_callback))
             dp.process_update(update)
             
             return jsonify({"status": "success"}), 200
@@ -758,7 +764,7 @@ def webhook():
 def yookassa_webhook():
     try:
         event_json = request.get_json()
-        logger.info(f"Yookassa webhook received")
+        logger.info(f"Yookassa webhook received: {event_json}")
         
         event_type = event_json.get('event')
         payment_data = event_json.get('object', {})
@@ -767,6 +773,8 @@ def yookassa_webhook():
             metadata = payment_data.get('metadata', {})
             user_id = metadata.get('user_id')
             plan_type = metadata.get('plan_type')
+            
+            logger.info(f"Payment succeeded for user {user_id}, plan {plan_type}")
             
             if user_id and plan_type:
                 success = virtual_boy.activate_subscription(int(user_id), plan_type)
@@ -781,6 +789,32 @@ def yookassa_webhook():
     except Exception as e:
         logger.error(f"Yookassa webhook error: {e}")
         return jsonify({"status": "error"}), 400
+
+@app.route('/fix_subscription/<int:user_id>', methods=['POST'])
+def fix_subscription(user_id):
+    """Эндпоинт для ручного исправления подписки"""
+    try:
+        # Проверяем текущий статус
+        sub_status, remaining = virtual_boy.check_subscription(user_id)
+        
+        # Активируем подписку на 30 дней
+        success = virtual_boy.activate_subscription(user_id, "month")
+        
+        if success:
+            return jsonify({
+                "status": "success", 
+                "message": f"Подписка для пользователя {user_id} исправлена",
+                "previous_status": sub_status
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Не удалось исправить подписку для пользователя {user_id}"
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error fixing subscription: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/')
 def home():
