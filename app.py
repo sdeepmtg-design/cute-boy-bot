@@ -27,14 +27,66 @@ else:
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
 
-# Стикеры сгруппированы по эмоциям (остаются те же)
+# Стикеры сгруппированы по эмоциям
 STICKERS = {
     'happy': [
-        'CAACAgUAAxkBAAMLaOVwjWUZp1NP2BGuwKmjRF6OLI4AAjQEAAJYdclX8q2oxkbXFAE2BA',
-        'CAACAgUAAxkBAAMNaOVwk-ocq67z8o18DiiqeVzoETIAAtgVAALtIDBVnHCyMkbXFAE2BA',
-        # ... остальные стикеры
+        'CAACAgUAAxkBAAMLaOVwjWUZp1NP2BGuwKmjRF6OLI4AAjQEAAJYdclX8q2oxkbXFAE2BA',  # 😆
+        'CAACAgUAAxkBAAMNaOVwk-ocq67z8o18DiiqeVzoETIAAtgVAALtIDBVnHCyMkbXFAE2BA',   # 🤣
+        'CAACAgUAAxkBAAMPaOVwluKnOJlR7LhcKTLtVGS2rhAAAlwIAAJhLGFU3X2RwyBQui02BA', # 🤣
+        'CAACAgUAAxkBAAMRaOVwmpczEO9zyabBtOolNv6ES2IAAj4FAALO4NFXlAFvncKMOnI2BA', # 😆
+        'CAACAgUAAxkBAAMTaOVwnCtTxwABI2ZlFIxHUbF0tRX9AAJIBgAC6qPYV9-RdK9DxL27NgQ', # 😃
+        'CAACAgUAAxkBAAMXaOVwpFo4mEI3Q15mt_RdYMHpYQsAAhkFAAJTHhlUx7qMwUdQrKA2BA', # 😂
+        'CAACAgUAAxkBAAM9aOV1DnbobFVVxWOR6MbwKCPvNr8AAkYFAALFctlX0O9u4pVuENE2BA', # 😁
+        'CAACAgUAAxkBAANvaOV1ZAIyQoH2gG0HJBDrimTbW04AAtsRAAJm8clUmEcsxPLhLBM2BA', # 😁
+        'CAACAgUAAxkBAANbaOV1RNOUsfpscsWpLzsWctUpSPAAAocPAAIQq6BULmUWUceQ9l02BA', # 😄
+        'CAACAgUAAxkBAANhaOV1TIyAGe9mO2gXQ-x0_mZpoC4AAl4PAAKgCqlUkYi61v_Robk2BA', # 😊
     ],
-    # ... остальные категории стикеров
+    'excited': [
+        'CAACAgUAAxkBAAMZaOVwpjX6zqvuYUlbRXgleJlO-PAAAlkFAAL_D9BXlbrCo5StI6g2BA', # 👏
+        'CAACAgUAAxkBAANXaOV1PNaL3dtp_gQeAAH2cFVbRXOtAALCDwACVCZ4VPTM2pdKNmxDNgQ', # 👏
+        'CAACAgUAAxkBAAM_aOV1FNjbWkn-9Z1DaEW4MUDUl5AAArQFAALYI_FXpiYOakfl3u82BA', # 🕺
+        'CAACAgUAAxkBAAMzaOV07KjoPkqTShVeExuwziKmORUAAvYLAALsoSlVN8FuIWfrVZM2BA', # 🔥
+        'CAACAgUAAxkBAANzaOV1b5x9Sv8cWO3c_eyZqS32k1AAAmcVAAI7PQFV-fnWOLEqsNw2BA', # 🔥
+        'CAACAgUAAxkBAAN3aOV1dm6wzH4mUlkoT8vvyZRHpbcAAgQQAAKHFQhVDA6AvfnwA7o2BA', # 🎶
+    ],
+    'thoughtful': [
+        'CAACAgUAAxkBAAMVaOVwoc-42szx4QOqA8ue2_kqPXQAAlEGAAKkbdBXN_vBCmyNvTc2BA', # 🤨
+        'CAACAgUAAxkBAANLaOV1J87qAgABmuhhxwjbEaW8-l8bAALFBAACa2cYVEPTSfCboscONgQ', # 🧐
+        'CAACAgUAAxkBAAODaOV1iyf4Tp2I_FqJ1MEElNZiPT4AAucRAALLy_BVh6CY7cuuTSA2BA', # 🤔
+        'CAACAgUAAxkBAANHaOV1IcE-E4O_O26bAAEHvV7dEWhsAAIvBQACdDvxV44Hc91-8uH2NgQ', # 🧠
+    ],
+    'sad': [
+        'CAACAgUAAxkBAAMnaOVwt1X88GnFDsN6yPKBGtYB3vUAAqUGAAItj-hXZkzTnPfY-Lk2BA', # 😭
+        'CAACAgUAAxkBAAMpaOVwuoiXB2zXCyHL-65qOb_O6CAAAqkEAAL6cJBUBAgsHkAohMw2BA', # 😭
+        'CAACAgUAAxkBAANFaOV1HuGyHJ-fTpZBqQRctu63q8gAAsMFAAJPF2FUed3lJcbaSbo2BA', # 😭
+        'CAACAgUAAxkBAANjaOV1Tvz3j7yGdzImS14sOHdM_CIAAnETAAKni6lUAWYX7973Ieg2BA', # 😭
+        'CAACAgUAAxkBAAOJaOV1kXDw4IuTPSv9xxGugl8DAe8AAv0PAAK94MhWfjwn-M8jsoM2BA', # 😫
+    ],
+    'surprised': [
+        'CAACAgUAAxkBAAM3aOV0_1W18nu7-6hoh5qcZ2FGxzQAAs0KAAIg59lVCi2RCriwT9A2BA', # 😱
+        'CAACAgUAAxkBAAN5aOV1fS230i7n_xWH5I0EPDJwN0QAAkUPAAK1ivlV6a4LlVT2Fqo2BA', # 😱
+        'CAACAgUAAxkBAAN1aOV1dfJolvgrfbxUMZdYlZvbseMAAuYPAAK5hglVlOyVVM3_6DQ2BA', # 😲
+        'CAACAgUAAxkBAAM7aOV1CFR0GwABwOwzcM0wJGoFdY30AAKXCgACV4cpVWWy2wd1FJI4NgQ', # 😨
+        'CAACAgUAAxkBAANPaOV1LYMmqPIUdMfN-VeeU_FqlxYAAh0FAAL53thXYWNfK99_mSY2BA', # 😰
+    ],
+    'cool': [
+        'CAACAgUAAxkBAAMbaOVwqAPY9Z2ZMGhyj1LahL1o_hAAAgkEAALHw3lUjKASq5URxKE2BA', # 🌚
+        'CAACAgUAAxkBAANJaOV1Jcik46P1JI5oaVyZRStvgiUAAtwKAAJuLShV9vkd0B8JLR82BA', # 😎
+        'CAACAgUAAxkBAAM5aOV1BVr5FCdcCoOqZkQAAWztEB5NAAIXCAAC3-EAAVaCiOfb9qzqzzYE', # 😏
+        'CAACAgUAAxkBAANxaOV1a8FUlSQ-yO-BTlTyJLUQPHsAAkcQAAI8JtlU0If0xEJwN9o2BA', # 😏
+    ],
+    'neutral': [
+        'CAACAgUAAxkBAAMjaOVwswzEhwj6Q2AN1WfUd0U-e8QAAssIAAIXaZBVaasDzLMRIr82BA', # 😌
+        'CAACAgUAAxkBAANlaOV1Uc47vIWNAXDZXThxlxPW0ooAAokRAALESqlUnGaXb9u1rvY2BA', # 😒
+        'CAACAgUAAxkBAANdaOV1RtyM8zIWqnNq5Gfynch-bKQAAlcSAALeK6lUwrQcCyjCuLE2BA', # 🫥
+        'CAACAgUAAxkBAANDaOV1HFVrX46orckc5WKkmjiEGosAAmwEAAJ8txFW6a19nBQM5Jo2BA', # 🗿
+    ],
+    'reactions': [
+        'CAACAgUAAxkBAANTaOV1N_DSD_RErE82zJ1yaUkbFfcAApsEAALygeFXA0Wl3FvY7wI2BA', # 👌
+        'CAACAgUAAxkBAANpaOV1W53WkN-KZ0QMW1RXTURHnogAAm0RAAKY7alU-DkmZIoo7os2BA', # 👍
+        'CAACAgUAAxkBAAOHaOV1j5BvaYemJFFLstXrL2gUrzgAAv0SAAIkGdBWWSWTZ3swBTM2BA', # 👍
+        'CAACAgUAAxkBAAOFaOV1jQVIkvf7t398Ndh8K8nL7LsAAv0TAAOu0VaRLcWmdHpxUDYE', # 👈
+    ]
 }
 
 class VirtualBoyBot:
@@ -58,10 +110,17 @@ class VirtualBoyBot:
         - Если тебя спрашивают о местах для посещения - давай конкретные, интересные рекомендации
         - Будь естественным и разнообразным в выражениях
         - Иногда можешь сам начинать разговор или задавать вопросы
+        
+        ПРИМЕРЫ РЕАКЦИЙ:
+        "Приятно познакомиться! [лёгкая улыбка] Честно говоря, я всегда немного волнуюсь в начале разговора..."
+        "[оживляясь] О, это моя любимая тема! Помню, как в детстве..."
+        "[задумчиво] Знаешь, а ведь ты права... это действительно важно."
+        "[с энтузиазмом] Если хочешь куда-то съездить, могу посоветить пару классных мест!"
+
+        Важно: Запоминай всю переписку и контекст разговора. Не забывай о чём вы говорили ранее.
         """
 
         # Время последнего сообщения от пользователя для авто-сообщений
-        # Это единственное что остается в памяти, но это не критично
         self.last_user_activity = {}
         
         # Вопросы для авто-сообщений
@@ -154,25 +213,41 @@ class VirtualBoyBot:
         
         # Грустные темы
         sad_words = ['грустно', 'печаль', 'плохо', 'устал', 'устала', 'проблем', 'сложно', 'тяжело', 
-                    'расстроен', 'расстроена', 'плакать', 'слезы', 'обидно', 'жаль', 'пропало']
+                    'расстроен', 'расстроена', 'плакать', 'слезы', 'обидно', 'жаль', 'пропало', 'больно',
+                    'одинок', 'скучно', 'тоск', 'несчаст', 'депрессия', 'уныл']
         if any(word in text_lower for word in sad_words):
             return 'sad'
         
         # Радостные темы
         happy_words = ['рад', 'рада', 'счастлив', 'счастлива', 'весело', 'круто', 'класс', 'отлично',
-                      'прекрасно', 'замечательно', 'ура', 'поздравляю', 'поздравления', 'праздник']
+                      'прекрасно', 'замечательно', 'ура', 'поздравляю', 'поздравления', 'праздник',
+                      'люблю', 'нравится', 'восторг', 'восхитительно', 'шикарно', 'супер']
         if any(word in text_lower for word in happy_words):
             return 'happy'
         
         # Удивление
-        surprise_words = ['вау', 'ого', 'невероятно', 'удивительно', 'неожиданно', 'вот это да']
+        surprise_words = ['вау', 'ого', 'невероятно', 'удивительно', 'неожиданно', 'вот это да', 'ничего себе',
+                         'обалдеть', 'потрясающе', 'фантастически', 'не может быть']
         if any(word in text_lower for word in surprise_words):
             return 'surprised'
         
         # Задумчивость
-        thoughtful_words = ['думаю', 'размышляю', 'интересно', 'вопрос', 'не знаю', 'сомневаюсь']
+        thoughtful_words = ['думаю', 'размышляю', 'интересно', 'вопрос', 'не знаю', 'сомневаюсь', 'не уверен',
+                           'может быть', 'наверное', 'пожалуй', 'решаю', 'выбираю', 'обдумываю']
         if any(word in text_lower for word in thoughtful_words):
             return 'thoughtful'
+        
+        # Влюбленность/романтика
+        love_words = ['любовь', 'влюблен', 'влюблена', 'роман', 'чувства', 'сердце', 'целовать', 'обнимать',
+                     'милый', 'милая', 'красив', 'симпатия', 'отношения', 'пара', 'свидание']
+        if any(word in text_lower for word in love_words):
+            return 'excited'
+        
+        # Злость/раздражение
+        angry_words = ['злой', 'зла', 'злюсь', 'разозлился', 'разозлилась', 'бесит', 'раздражает', 'нервы',
+                      'ярост', 'гнев', 'ненавижу', 'надоело', 'достало']
+        if any(word in text_lower for word in angry_words):
+            return 'sad'  # Используем грустные стикеры для поддержки
         
         return None
 
@@ -185,26 +260,34 @@ class VirtualBoyBot:
         ai_emotion = self.analyze_message_emotion(ai_response)
         
         # Определяем вероятность отправки стикера
-        send_probability = 0.2  # базовая вероятность
+        send_probability = 0.25  # увеличил базовую вероятность
         
         if user_emotion == 'sad' or ai_emotion == 'sad':
-            send_probability = 0.1
+            # На грустные сообщения отправляем поддерживающие стикеры
+            send_probability = 0.3  # увеличил вероятность для поддержки
             return (random.random() < send_probability, 'sad')
         
         elif user_emotion == 'happy' or ai_emotion == 'happy':
-            send_probability = 0.3
+            # На радостные сообщения отправляем чаще
+            send_probability = 0.4
             return (random.random() < send_probability, 'happy')
         
         elif user_emotion == 'surprised' or ai_emotion == 'surprised':
-            send_probability = 0.25
+            send_probability = 0.35
             return (random.random() < send_probability, 'surprised')
         
         elif user_emotion == 'thoughtful' or ai_emotion == 'thoughtful':
-            send_probability = 0.15
+            send_probability = 0.2
             return (random.random() < send_probability, 'thoughtful')
         
+        elif user_emotion == 'excited' or ai_emotion == 'excited':
+            send_probability = 0.45  # высокая вероятность для романтики
+            return (random.random() < send_probability, 'excited')
+        
         else:
-            return (random.random() < send_probability, random.choice(list(STICKERS.keys())))
+            # Случайный стикер для нейтральных сообщений
+            emotions = ['happy', 'excited', 'cool', 'neutral']
+            return (random.random() < send_probability, random.choice(emotions))
 
     def check_auto_message(self, user_id, chat_id):
         """Проверка необходимости авто-сообщения"""
@@ -245,10 +328,6 @@ class VirtualBoyBot:
         except Exception as e:
             logger.error(f"Error checking subscription: {e}")
             return "expired", None
-
-    # ... остальные методы остаются практически без изменений ...
-    # create_payment_keyboard, handle_payment, activate_subscription, 
-    # process_message, handle_sticker, handle_callback, get_deepseek_response
 
     def create_payment_keyboard(self, user_id):
         keyboard = [
@@ -304,12 +383,28 @@ class VirtualBoyBot:
                 logger.info(f"✅ Subscription activated: {subscription.plan_type} until {subscription.expires_at}")
                 
                 if bot:
-                    bot.send_message(
+                    # Отправляем закрепленное сообщение об успешной оплате
+                    success_message = bot.send_message(
                         chat_id=user_id,
-                        text=f"✅ **Оплата прошла успешно!**\n\n💫 Подписка активирована на {days} дней! Теперь можно общаться без ограничений! 🎉",
+                        text=f"🎉 **ОПЛАТА ПРОШЛА УСПЕШНО!** 🎉\n\n"
+                             f"✅ **Подписка активирована на {days} дней!**\n"
+                             f"💫 Теперь можно общаться без ограничений!\n"
+                             f"✨ Спасибо за доверие!\n\n"
+                             f"_Это сообщение будет закреплено на некоторое время_",
                         parse_mode='Markdown'
                     )
+                    
+                    # Пытаемся закрепить сообщение (если у бота есть права)
+                    try:
+                        bot.pin_chat_message(chat_id=user_id, message_id=success_message.message_id)
+                        logger.info(f"✅ Success message pinned for user {user_id}")
+                    except Exception as e:
+                        logger.warning(f"Could not pin message: {e}")
+                    
+                    # Отправляем праздничный стикер
                     self.send_sticker(user_id, 'excited', user_id)
+                    time.sleep(1)
+                    self.send_sticker(user_id, 'happy', user_id)
                 
                 return True
             else:
@@ -346,15 +441,23 @@ class VirtualBoyBot:
                 return
 
             if user_message in ['/help', '/start']:
-                help_text = """🤖 *Доступные команды:*\n/start - Начать общение\n/help - Помощь\n/profile - Профиль\n/subscribe - Подписка"""
+                help_text = """🤖 *Доступные команды:*
+
+/start - Начать общение
+/help - Показать это сообщение  
+/profile - Посмотреть свой профиль и подписку
+/subscribe - Выбрать подписку
+/test_sticker - Проверить отправку стикеров
+
+💫 Просто напиши мне что-нибудь, и я отвечу!"""
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 return
 
             if user_message == '/test_sticker':
-                bot.send_message(chat_id=chat_id, text="Проверяем стикеры... 😊")
-                for emotion in ['happy', 'excited', 'thoughtful', 'cool']:
+                bot.send_message(chat_id=chat_id, text="Проверяем стикеры разных эмоций... 😊")
+                for emotion in ['happy', 'excited', 'thoughtful', 'cool', 'surprised']:
                     self.send_sticker(chat_id, emotion, user_id)
-                    time.sleep(1)
+                    time.sleep(0.5)
                 return
 
             if user_message == '/noway147way147no147':
@@ -365,17 +468,33 @@ class VirtualBoyBot:
 
             if user_message == '/subscribe':
                 keyboard = self.create_payment_keyboard(user_id)
-                bot.send_message(chat_id=chat_id, text="💫 *Выбери подписку*\n\n🎯 **Неделя** - 299₽\n💫 **Месяц** - 999₽", reply_markup=keyboard, parse_mode='Markdown')
+                bot.send_message(
+                    chat_id=chat_id,
+                    text="""💫 *Выбери подписку*
+
+🎯 **Неделя** - 299₽
+• Полный доступ к боту
+• Приоритетная поддержка
+
+💫 **Месяц** - 999₽  
+• Полный доступ к боту  
+• Приоритетная поддержка
+• Экономия 30%
+
+*После оплаты подписка активируется автоматически!* ✅""",
+                    reply_markup=keyboard,
+                    parse_mode='Markdown'
+                )
                 return
 
             if user_message == '/profile':
                 sub_status, remaining = self.check_subscription(user_id)
                 if sub_status == "free":
-                    text = f"👤 Твой профиль:\n\n🆓 Бесплатный доступ\n📝 Осталось сообщений: {remaining}/5"
+                    text = f"👤 Твой профиль:\n\n🆓 Бесплатный доступ\n📝 Осталось сообщений: {remaining}/5\n\n💫 Напиши /subscribe для полного доступа!"
                 elif sub_status == "premium":
                     sub_data = db_manager.get_subscription(user_id)
                     days_left = (sub_data.expires_at - datetime.now()).days
-                    text = f"👤 Твой профиль:\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}"
+                    text = f"👤 Твой профиль:\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}\n💫 Тариф: {sub_data.plan_type}"
                 else:
                     text = f"👤 Твой профиль:\n\n❌ Подписка истекла\n💫 Напиши /subscribe чтобы продолжить общение!"
                 bot.send_message(chat_id=chat_id, text=text)
@@ -384,7 +503,16 @@ class VirtualBoyBot:
             # Проверяем подписку
             sub_status, remaining = self.check_subscription(user_id)
             if sub_status == "expired":
-                bot.send_message(chat_id=chat_id, text="❌ Бесплатные сообщения закончились!\n💫 Напиши /subscribe для выбора тарифа!")
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=f"""❌ Бесплатные сообщения закончились!
+
+💫 Приобрети подписку чтобы продолжить общение:
+• Неделя - 299₽
+• Месяц - 999₽
+
+Напиши /subscribe для выбора тарифа!"""
+                )
                 return
 
             # Увеличиваем счетчик для бесплатных пользователей
@@ -397,7 +525,7 @@ class VirtualBoyBot:
             bot.send_chat_action(chat_id=chat_id, action='typing')
             response = self.get_deepseek_response(user_message, user_id)
             
-            # Отправляем стикер если нужно
+            # Определяем, нужно ли отправлять стикер (увеличил вероятность)
             should_send, emotion_type = self.should_send_sticker(user_message, response)
             if should_send:
                 self.send_sticker(chat_id, emotion_type, user_id)
@@ -424,19 +552,31 @@ class VirtualBoyBot:
             # Сохраняем в историю
             self.add_to_history(user_id, "user", f"[стикер: {sticker.emoji if sticker.emoji else 'стикер'}]")
             
-            reactions = ["Классный стикер! 😊", "Мне нравится этот стикер! 👍", "Забавно! 😄"]
+            reactions = [
+                "Классный стикер! 😊", 
+                "Мне нравится этот стикер! 👍", 
+                "Забавно! 😄",
+                "Отличный выбор! 👌",
+                "Ха-ха, хороший! 😂",
+                "Прикольно! 😁"
+            ]
             response = f"{self.get_random_emotion()} {random.choice(reactions)}"
             bot.send_message(chat_id=chat_id, text=response)
             
-            if random.random() < 0.4:
-                if sticker.emoji in ['😂', '😄', '😊', '🤣']:
+            # Высокая вероятность ответа стикером (70%)
+            if random.random() < 0.7:
+                if sticker.emoji in ['😂', '😄', '😊', '🤣', '😁']:
                     self.send_sticker(chat_id, 'happy', user_id)
-                elif sticker.emoji in ['😭', '😢', '🥺']:
+                elif sticker.emoji in ['😭', '😢', '🥺', '😔']:
                     self.send_sticker(chat_id, 'sad', user_id)
-                elif sticker.emoji in ['😮', '😲', '🤯']:
+                elif sticker.emoji in ['😮', '😲', '🤯', '😨']:
                     self.send_sticker(chat_id, 'surprised', user_id)
+                elif sticker.emoji in ['😍', '🥰', '😘']:
+                    self.send_sticker(chat_id, 'excited', user_id)
+                elif sticker.emoji in ['😎', '😏', '🧐']:
+                    self.send_sticker(chat_id, 'cool', user_id)
                 else:
-                    self.send_sticker(chat_id, None, user_id)
+                    self.send_sticker(chat_id, 'happy', user_id)  # по умолчанию веселый
                     
         except Exception as e:
             logger.error(f"Error handling sticker: {e}")
@@ -454,20 +594,66 @@ class VirtualBoyBot:
                 payment_result = self.handle_payment(user_id, plan_type)
                 
                 if payment_result["success"]:
-                    bot.send_message(chat_id=chat_id, text=payment_result["message"], parse_mode='Markdown', disable_web_page_preview=False)
-                    query.edit_message_text(text="💫 *Ссылка для оплаты отправлена!*\n\nПосле оплаты вернись в бота!", parse_mode='Markdown', reply_markup=None)
+                    # Ставим реакцию на сообщение
+                    try:
+                        query.answer("✅ Ссылка для оплаты отправлена!")
+                    except:
+                        pass
+                    
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=payment_result["message"],
+                        parse_mode='Markdown',
+                        disable_web_page_preview=False
+                    )
+                    
+                    query.edit_message_text(
+                        text="💫 *Ссылка для оплаты отправлена!*\n\nПосле оплаты вернись в бота - подписка активируется автоматически! ✅",
+                        parse_mode='Markdown',
+                        reply_markup=None
+                    )
                 else:
-                    query.edit_message_text(text="❌ *Ошибка при создании платежа*", parse_mode='Markdown', reply_markup=None)
+                    try:
+                        query.answer("❌ Ошибка при создании платежа")
+                    except:
+                        pass
+                    query.edit_message_text(
+                        text="❌ *Ошибка при создании платежа*\n\nПопробуй еще раз или напиши в поддержку.",
+                        parse_mode='Markdown',
+                        reply_markup=None
+                    )
                     
             elif data.startswith('help_'):
-                query.edit_message_text(text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Оплати картой\n3. Вернись в бота!", parse_mode='Markdown', reply_markup=None)
+                try:
+                    query.answer("ℹ️ Помощь по оплате")
+                except:
+                    pass
+                query.edit_message_text(
+                    text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Перейди по ссылке оплаты\n3. Оплати картой\n4. Вернись в бота - подписка активируется автоматически!\n\n*Тестовая карта:*\n`5555 5555 5555 4477`\nСрок: 01/30, CVV: 123\n\nЕсли возникли проблемы - @support",
+                    parse_mode='Markdown',
+                    reply_markup=None
+                )
                 
             elif data.startswith('cancel_'):
-                query.edit_message_text(text="💫 Хорошо! Если передумаешь - просто напиши /subscribe 😊", reply_markup=None)
+                try:
+                    query.answer("❌ Отмена")
+                except:
+                    pass
+                query.edit_message_text(
+                    text="💫 Хорошо! Если передумаешь - просто напиши /subscribe 😊",
+                    reply_markup=None
+                )
                 
         except Exception as e:
             logger.error(f"Callback error: {e}")
-            query.edit_message_text(text="❌ Произошла ошибка. Попробуй еще раз.", reply_markup=None)
+            try:
+                query.answer("❌ Произошла ошибка")
+            except:
+                pass
+            query.edit_message_text(
+                text="❌ Произошла ошибка. Попробуй еще раз.",
+                reply_markup=None
+            )
 
     def get_deepseek_response(self, user_message, user_id):
         """Получение эмоционального ответа от DeepSeek API с ИСТОРИЕЙ ИЗ БАЗЫ"""
@@ -587,7 +773,8 @@ def home():
     return jsonify({
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
-        "database": "persistent"
+        "database": "persistent",
+        "features": ["smart_stickers", "pinned_messages", "reactions", "emotional_analysis"]
     })
 
 if __name__ == '__main__':
