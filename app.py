@@ -28,65 +28,34 @@ else:
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
 
-# Стикеры сгруппированы по эмоциям
+# НОВЫЕ СТИКЕРЫ
 STICKERS = {
-    'happy': [
-        'CAACAgUAAxkBAAMLaOVwjWUZp1NP2BGuwKmjRF6OLI4AAjQEAAJYdclX8q2oxkbXFAE2BA',  # 😆
-        'CAACAgUAAxkBAAMNaOVwk-ocq67z8o18DiiqeVzoETIAAtgVAALtIDBVnHCyMkbXFAE2BA',   # 🤣
-        'CAACAgUAAxkBAAMPaOVwluKnOJlR7LhcKTLtVGS2rhAAAlwIAAJhLGFU3X2RwyBQui02BA', # 🤣
-        'CAACAgUAAxkBAAMRaOVwmpczEO9zyabBtOolNv6ES2IAAj4FAALO4NFXlAFvncKMOnI2BA', # 😆
-        'CAACAgUAAxkBAAMTaOVwnCtTxwABI2ZlFIxHUbF0tRX9AAJIBgAC6qPYV9-RdK9DxL27NgQ', # 😃
-        'CAACAgUAAxkBAAMXaOVwpFo4mEI3Q15mt_RdYMHpYQsAAhkFAAJTHhlUx7qMwUdQrKA2BA', # 😂
-        'CAACAgUAAxkBAAM9aOV1DnbobFVVxWOR6MbwKCPvNr8AAkYFAALFctlX0O9u4pVuENE2BA', # 😁
-        'CAACAgUAAxkBAANvaOV1ZAIyQoH2gG0HJBDrimTbW04AAtsRAAJm8clUmEcsxPLhLBM2BA', # 😁
-        'CAACAgUAAxkBAANbaOV1RNOUsfpscsWpLzsWctUpSPAAAocPAAIQq6BULmUWUceQ9l02BA', # 😄
-        'CAACAgUAAxkBAANhaOV1TIyAGe9mO2gXQ-x0_mZpoC4AAl4PAAKgCqlUkYi61v_Robk2BA', # 😊
+    'surprised': [
+        'CAACAgIAAxkBAAOTaPUhBICoUp4mifIKlpCDEqNqmvIAAiOHAAI9mKlL8N3R8w_Hh4g2BA'  # 😮
     ],
-    'excited': [
-        'CAACAgUAAxkBAAMZaOVwpjX6zqvuYUlbRXgleJlO-PAAAlkFAAL_D9BXlbrCo5StI6g2BA', # 👏
-        'CAACAgUAAxkBAANXaOV1PNaL3dtp_gQeAAH2cFVbRXOtAALCDwACVCZ4VPTM2pdKNmxDNgQ', # 👏
-        'CAACAgUAAxkBAAM_aOV1FNjbWkn-9Z1DaEW4MUDUl5AAArQFAALYI_FXpiYOakfl3u82BA', # 🕺
-        'CAACAgUAAxkBAAMzaOV07KjoPkqTShVeExuwziKmORUAAvYLAALsoSlVN8FuIWfrVZM2BA', # 🔥
-        'CAACAgUAAxkBAANzaOV1b5x9Sv8cWO3c_eyZqS32k1AAAmcVAAI7PQFV-fnWOLEqsNw2BA', # 🔥
-        'CAACAgUAAxkBAAN3aOV1dm6wzH4mUlkoT8vvyZRHpbcAAgQQAAKHFQhVDA6AvfnwA7o2BA', # 🎶
+    'smirk': [
+        'CAACAgIAAxkBAAOdaPU0yXAgvz6AdX-FpMgLg53taEAAAuSHAAJEoahLFYae4U2o5J42BA'  # 😏
     ],
-    'thoughtful': [
-        'CAACAgUAAxkBAAMVaOVwoc-42szx4QOqA8ue2_kqPXQAAlEGAAKkbdBXN_vBCmyNvTc2BA', # 🤨
-        'CAACAgUAAxkBAANLaOV1J87qAgABmuhhxwjbEaW8-l8bAALFBAACa2cYVEPTSfCboscONgQ', # 🧐
-        'CAACAgUAAxkBAAODaOV1iyf4Tp2I_FqJ1MEElNZiPT4AAucRAALLy_BVh6CY7cuuTSA2BA', # 🤔
-        'CAACAgUAAxkBAANHaOV1IcE-E4O_O26bAAEHvV7dEWhsAAIvBQACdDvxV44Hc91-8uH2NgQ', # 🧠
+    'kiss': [
+        'CAACAgIAAxkBAAOfaPU0ywPN-wiRUQdEb83JAiFcr4QAAgeTAAI3HKhLRz5ksBXKsi82BA'  # 😘
+    ],
+    'smile': [
+        'CAACAgIAAxkBAAOhaPU0zWuMaK0-GVqZG9XPbAu7XSYAAuKEAAK9J6hL0rTiATVYCaA2BA'  # 😊
+    ],
+    'thinking': [
+        'CAACAgIAAxkBAAOjaPU0zwomZzjHhD7hAtvY15D79j4AArKHAALhRKlLxrUWO0ZZRmU2BA'  # 🤔
+    ],
+    'angry': [
+        'CAACAgIAAxkBAAOlaPU00JqQwxmGZ9-cP4vEfbEovCQAAjl7AAKIFLBLGxh491DY6ss2BA'  # 😡
     ],
     'sad': [
-        'CAACAgUAAxkBAAMnaOVwt1X88GnFDsN6yPKBGtYB3vUAAqUGAAItj-hXZkzTnPfY-Lk2BA', # 😭
-        'CAACAgUAAxkBAAMpaOVwuoiXB2zXCyHL-65qOb_O6CAAAqkEAAL6cJBUBAgsHkAohMw2BA', # 😭
-        'CAACAgUAAxkBAANFaOV1HuGyHJ-fTpZBqQRctu63q8gAAsMFAAJPF2FUed3lJcbaSbo2BA', # 😭
-        'CAACAgUAAxkBAANjaOV1Tvz3j7yGdzImS14sOHdM_CIAAnETAAKni6lUAWYX7973Ieg2BA', # 😭
-        'CAACAgUAAxkBAAOJaOV1kXDw4IuTPSv9xxGugl8DAe8AAv0PAAK94MhWfjwn-M8jsoM2BA', # 😫
+        'CAACAgIAAxkBAAOnaPU00vUG91BIxt_hf2ZLFsqpiBoAAsKMAAIzsalLwMkOoKX1GCo2BA'  # 😢
     ],
-    'surprised': [
-        'CAACAgUAAxkBAAM3aOV0_1W18nu7-6hoh5qcZ2FGxzQAAs0KAAIg59lVCi2RCriwT9A2BA', # 😱
-        'CAACAgUAAxkBAAN5aOV1fS230i7n_xWH5I0EPDJwN0QAAkUPAAK1ivlV6a4LlVT2Fqo2BA', # 😱
-        'CAACAgUAAxkBAAN1aOV1dfJolvgrfbxUMZdYlZvbseMAAuYPAAK5hglVlOyVVM3_6DQ2BA', # 😲
-        'CAACAgUAAxkBAAM7aOV1CFR0GwABwOwzcM0wJGoFdY30AAKXCgACV4cpVWWy2wd1FJI4NgQ', # 😨
-        'CAACAgUAAxkBAANPaOV1LYMmqPIUdMfN-VeeU_FqlxYAAh0FAAL53thXYWNfK99_mSY2BA', # 😰
+    'laugh': [
+        'CAACAgIAAxkBAAOpaPU00x2HdLjKyKsCeZ-dlGN2qR0AAnmWAALGIahLqjLJC7UTvXI2BA'  # 😄
     ],
-    'cool': [
-        'CAACAgUAAxkBAAMbaOVwqAPY9Z2ZMGhyj1LahL1o_hAAAgkEAALHw3lUjKASq5URxKE2BA', # 🌚
-        'CAACAgUAAxkBAANJaOV1Jcik46P1JI5oaVyZRStvgiUAAtwKAAJuLShV9vkd0B8JLR82BA', # 😎
-        'CAACAgUAAxkBAAM5aOV1BVr5FCdcCoOqZkQAAWztEB5NAAIXCAAC3-EAAVaCiOfb9qzqzzYE', # 😏
-        'CAACAgUAAxkBAANxaOV1a8FUlSQ-yO-BTlTyJLUQPHsAAkcQAAI8JtlU0If0xEJwN9o2BA', # 😏
-    ],
-    'neutral': [
-        'CAACAgUAAxkBAAMjaOVwswzEhwj6Q2AN1WfUd0U-e8QAAssIAAIXaZBVaasDzLMRIr82BA', # 😌
-        'CAACAgUAAxkBAANlaOV1Uc47vIWNAXDZXThxlxPW0ooAAokRAALESqlUnGaXb9u1rvY2BA', # 😒
-        'CAACAgUAAxkBAANdaOV1RtyM8zIWqnNq5Gfynch-bKQAAlcSAALeK6lUwrQcCyjCuLE2BA', # 🫥
-        'CAACAgUAAxkBAANDaOV1HFVrX46orckc5WKkmjiEGosAAmwEAAJ8txFW6a19nBQM5Jo2BA', # 🗿
-    ],
-    'reactions': [
-        'CAACAgUAAxkBAANTaOV1N_DSD_RErE82zJ1yaUkbFfcAApsEAALygeFXA0Wl3FvY7wI2BA', # 👌
-        'CAACAgUAAxkBAANpaOV1W53WkN-KZ0QMW1RXTURHnogAAm0RAAKY7alU-DkmZIoo7os2BA', # 👍
-        'CAACAgUAAxkBAAOHaOV1j5BvaYemJFFLstXrL2gUrzgAAv0SAAIkGdBWWSWTZ3swBTM2BA', # 👍
-        'CAACAgUAAxkBAAOFaOV1jQVIkvf7t398Ndh8K8nL7LsAAv0TAAOu0VaRLcWmdHpxUDYE', # 👈
+    'hug': [
+        'CAACAgIAAxkBAAOraPU01P5HxysGmmJBxKgoFVBRAzsAAlGQAAIPNqhLK0YvfrVaax42BA'  # 🤗
     ]
 }
 
@@ -171,7 +140,7 @@ class VirtualBoyBot:
                                 bot.send_message(chat_id=user_id, text=message)
                                 # 40% шанс отправить стикер
                                 if random.random() < 0.4:
-                                    self.send_sticker(user_id, 'thoughtful', user_id)
+                                    self.send_sticker(user_id, 'thinking', user_id)
                                 logger.info(f"📨 Sent auto-message to user {user_id}")
                         except Exception as e:
                             logger.error(f"Error sending auto-message to {user_id}: {e}")
@@ -282,7 +251,7 @@ class VirtualBoyBot:
                       'прекрасно', 'замечательно', 'ура', 'поздравляю', 'поздравления', 'праздник',
                       'люблю', 'нравится', 'восторг', 'восхитительно', 'шикарно', 'супер', 'здорово']
         if any(word in text_lower for word in happy_words):
-            return 'happy'
+            return 'smile'
         
         # Удивление
         surprise_words = ['вау', 'ого', 'невероятно', 'удивительно', 'неожиданно', 'вот это да', 'ничего себе',
@@ -294,14 +263,30 @@ class VirtualBoyBot:
         thoughtful_words = ['думаю', 'размышляю', 'интересно', 'вопрос', 'не знаю', 'сомневаюсь', 'не уверен',
                            'может быть', 'наверное', 'пожалуй', 'решаю', 'выбираю', 'обдумываю', 'философ']
         if any(word in text_lower for word in thoughtful_words):
-            return 'thoughtful'
+            return 'thinking'
         
         # Влюбленность/романтика
         love_words = ['любовь', 'влюблен', 'влюблена', 'роман', 'чувства', 'сердце', 'целовать', 'обнимать',
                      'милый', 'милая', 'красив', 'симпатия', 'отношения', 'пара', 'свидание', 'романтик']
         if any(word in text_lower for word in love_words):
-            return 'excited'
+            return 'kiss'
         
+        # Злость/раздражение
+        angry_words = ['злой', 'зла', 'злюсь', 'разозлился', 'разозлилась', 'бесит', 'раздражает', 'нервы',
+                      'ярост', 'гнев', 'ненавижу', 'надоело', 'достало']
+        if any(word in text_lower for word in angry_words):
+            return 'angry'
+        
+        # Смех/веселье
+        laugh_words = ['смех', 'смешно', 'хаха', 'хехе', 'лол', 'ржу', 'умора', 'прикол']
+        if any(word in text_lower for word in laugh_words):
+            return 'laugh'
+        
+        # Поддержка/обнимашки
+        support_words = ['обнять', 'обнимаю', 'поддержка', 'поддержи', 'жаль', 'сочувствую']
+        if any(word in text_lower for word in support_words):
+            return 'hug'
+
         return None
 
     def should_send_sticker(self, user_message, ai_response):
@@ -314,20 +299,29 @@ class VirtualBoyBot:
         if user_emotion == 'sad' or ai_emotion == 'sad':
             send_probability = 0.4
             return (random.random() < send_probability, 'sad')
-        elif user_emotion == 'happy' or ai_emotion == 'happy':
+        elif user_emotion == 'smile' or ai_emotion == 'smile':
             send_probability = 0.5
-            return (random.random() < send_probability, 'happy')
+            return (random.random() < send_probability, 'smile')
         elif user_emotion == 'surprised' or ai_emotion == 'surprised':
             send_probability = 0.4
             return (random.random() < send_probability, 'surprised')
-        elif user_emotion == 'thoughtful' or ai_emotion == 'thoughtful':
+        elif user_emotion == 'thinking' or ai_emotion == 'thinking':
             send_probability = 0.3
-            return (random.random() < send_probability, 'thoughtful')
-        elif user_emotion == 'excited' or ai_emotion == 'excited':
+            return (random.random() < send_probability, 'thinking')
+        elif user_emotion == 'kiss' or ai_emotion == 'kiss':
             send_probability = 0.6
-            return (random.random() < send_probability, 'excited')
+            return (random.random() < send_probability, 'kiss')
+        elif user_emotion == 'angry' or ai_emotion == 'angry':
+            send_probability = 0.4
+            return (random.random() < send_probability, 'angry')
+        elif user_emotion == 'laugh' or ai_emotion == 'laugh':
+            send_probability = 0.5
+            return (random.random() < send_probability, 'laugh')
+        elif user_emotion == 'hug' or ai_emotion == 'hug':
+            send_probability = 0.6
+            return (random.random() < send_probability, 'hug')
         else:
-            emotions = ['happy', 'excited', 'cool', 'neutral']
+            emotions = ['smile', 'thinking', 'surprised']
             return (random.random() < send_probability, random.choice(emotions))
 
     def check_subscription(self, user_id):
@@ -430,9 +424,9 @@ class VirtualBoyBot:
                     )
                     
                     # Отправляем праздничные стикеры
-                    self.send_sticker(user_id, 'excited', user_id)
+                    self.send_sticker(user_id, 'smile', user_id)
                     time.sleep(1)
-                    self.send_sticker(user_id, 'happy', user_id)
+                    self.send_sticker(user_id, 'laugh', user_id)
                 
                 return True
             else:
@@ -486,7 +480,7 @@ class VirtualBoyBot:
             if user_message == '/noway147way147no147':
                 db_manager.update_subscription(user_id, 'unlimited', 30)
                 bot.send_message(chat_id=chat_id, text="✅ Админ доступ активирован! Безлимитная подписка на 30 дней! 🎉")
-                self.send_sticker(chat_id, 'excited', user_id)
+                self.send_sticker(chat_id, 'smile', user_id)
                 return
 
             if user_message == '/subscribe':
@@ -589,17 +583,23 @@ class VirtualBoyBot:
             # Высокая вероятность ответа стикером (70%)
             if random.random() < 0.7:
                 if sticker.emoji in ['😂', '😄', '😊', '🤣', '😁']:
-                    self.send_sticker(chat_id, 'happy', user_id)
+                    self.send_sticker(chat_id, 'laugh', user_id)
                 elif sticker.emoji in ['😭', '😢', '🥺', '😔']:
                     self.send_sticker(chat_id, 'sad', user_id)
                 elif sticker.emoji in ['😮', '😲', '🤯', '😨']:
                     self.send_sticker(chat_id, 'surprised', user_id)
                 elif sticker.emoji in ['😍', '🥰', '😘']:
-                    self.send_sticker(chat_id, 'excited', user_id)
+                    self.send_sticker(chat_id, 'kiss', user_id)
                 elif sticker.emoji in ['😎', '😏', '🧐']:
-                    self.send_sticker(chat_id, 'cool', user_id)
+                    self.send_sticker(chat_id, 'smirk', user_id)
+                elif sticker.emoji in ['🤗', '🫂']:
+                    self.send_sticker(chat_id, 'hug', user_id)
+                elif sticker.emoji in ['😡', '🤬']:
+                    self.send_sticker(chat_id, 'angry', user_id)
+                elif sticker.emoji in ['🤔', '🧐']:
+                    self.send_sticker(chat_id, 'thinking', user_id)
                 else:
-                    self.send_sticker(chat_id, 'happy', user_id)
+                    self.send_sticker(chat_id, 'smile', user_id)
                     
         except Exception as e:
             logger.error(f"Error handling sticker: {e}")
@@ -797,7 +797,7 @@ def home():
     return jsonify({
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
-        "features": ["emotional_depth", "auto_messages_2h", "smart_stickers", "receipt_pinning"]
+        "features": ["emotional_depth", "auto_messages_2h", "new_stickers", "receipt_pinning"]
     })
 
 if __name__ == '__main__':
