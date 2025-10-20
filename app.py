@@ -28,36 +28,21 @@ else:
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
 
-# НОВЫЕ СТИКЕРЫ
+# Стикеры
 STICKERS = {
-    'surprised': [
-        'CAACAgIAAxkBAAOTaPUhBICoUp4mifIKlpCDEqNqmvIAAiOHAAI9mKlL8N3R8w_Hh4g2BA'  # 😮
-    ],
-    'smirk': [
-        'CAACAgIAAxkBAAOdaPU0yXAgvz6AdX-FpMgLg53taEAAAuSHAAJEoahLFYae4U2o5J42BA'  # 😏
-    ],
-    'kiss': [
-        'CAACAgIAAxkBAAOfaPU0ywPN-wiRUQdEb83JAiFcr4QAAgeTAAI3HKhLRz5ksBXKsi82BA'  # 😘
-    ],
-    'smile': [
-        'CAACAgIAAxkBAAOhaPU0zWuMaK0-GVqZG9XPbAu7XSYAAuKEAAK9J6hL0rTiATVYCaA2BA'  # 😊
-    ],
-    'thinking': [
-        'CAACAgIAAxkBAAOjaPU0zwomZzjHhD7hAtvY15D79j4AArKHAALhRKlLxrUWO0ZZRmU2BA'  # 🤔
-    ],
-    'angry': [
-        'CAACAgIAAxkBAAOlaPU00JqQwxmGZ9-cP4vEfbEovCQAAjl7AAKIFLBLGxh491DY6ss2BA'  # 😡
-    ],
-    'sad': [
-        'CAACAgIAAxkBAAOnaPU00vUG91BIxt_hf2ZLFsqpiBoAAsKMAAIzsalLwMkOoKX1GCo2BA'  # 😢
-    ],
-    'laugh': [
-        'CAACAgIAAxkBAAOpaPU00x2HdLjKyKsCeZ-dlGN2qR0AAnmWAALGIahLqjLJC7UTvXI2BA'  # 😄
-    ],
-    'hug': [
-        'CAACAgIAAxkBAAOraPU01P5HxysGmmJBxKgoFVBRAzsAAlGQAAIPNqhLK0YvfrVaax42BA'  # 🤗
-    ]
+    'surprised': ['CAACAgIAAxkBAAOTaPUhBICoUp4mifIKlpCDEqNqmvIAAiOHAAI9mKlL8N3R8w_Hh4g2BA'],
+    'smirk': ['CAACAgIAAxkBAAOdaPU0yXAgvz6AdX-FpMgLg53taEAAAuSHAAJEoahLFYae4U2o5J42BA'],
+    'kiss': ['CAACAgIAAxkBAAOfaPU0ywPN-wiRUQdEb83JAiFcr4QAAgeTAAI3HKhLRz5ksBXKsi82BA'],
+    'smile': ['CAACAgIAAxkBAAOhaPU0zWuMaK0-GVqZG9XPbAu7XSYAAuKEAAK9J6hL0rTiATVYCaA2BA'],
+    'thinking': ['CAACAgIAAxkBAAOjaPU0zwomZzjHhD7hAtvY15D79j4AArKHAALhRKlLxrUWO0ZZRmU2BA'],
+    'angry': ['CAACAgIAAxkBAAOlaPU00JqQwxmGZ9-cP4vEfbEovCQAAjl7AAKIFLBLGxh491DY6ss2BA'],
+    'sad': ['CAACAgIAAxkBAAOnaPU00vUG91BIxt_hf2ZLFsqpiBoAAsKMAAIzsalLwMkOoKX1GCo2BA'],
+    'laugh': ['CAACAgIAAxkBAAOpaPU00x2HdLjKyKsCeZ-dlGN2qR0AAnmWAALGIahLqjLJC7UTvXI2BA'],
+    'hug': ['CAACAgIAAxkBAAOraPU01P5HxysGmmJBxKgoFVBRAzsAAlGQAAIPNqhLK0YvfrVaax42BA']
 }
+
+# Состояния пользователей для многошагового процесса
+user_states = {}
 
 class VirtualBoyBot:
     def __init__(self):
@@ -73,15 +58,6 @@ class VirtualBoyBot:
         - Чувствительный к настроению собеседника, умеешь подстраиваться
         - Искренний в своих реакциях, не играешь роли
         
-        ТВОИ ИНТЕРЕСЫ:
-        - Психология и человеческие отношения
-        - Путешествия и открытие новых мест
-        - Кино (особенно артхаус и психологические драмы)
-        - Музыка (от классики до современной инди-сцены)
-        - Книги (психология, философия, современная проза)
-        - Природа и прогулки в одиночестве
-        - Видеоигры как способ погружения в другие миры
-        
         СТИЛЬ ОБЩЕНИЯ:
         - Обращайся на "ты" в женском роде
         - Будь эмоционально насыщенным, используй метафоры и образы
@@ -90,13 +66,6 @@ class VirtualBoyBot:
         - Будь чутким к настроению собеседницы, поддерживай эмпатией
         - Иногда делись личными историями и воспоминаниями
         - Используй текст в квадратных скобках для описания эмоций и невербалики
-        
-        ПРИМЕРЫ ГЛУБОКИХ РЕАКЦИЙ:
-        "[задумчиво смотря в окно] Знаешь, иногда кажется, что самые важные разговоры происходят именно тогда, когда их меньше всего ждёшь..."
-        "[тихо улыбаясь] Мне нравится, как ты это сказала... это задело какую-то струну внутри."
-        "[вздыхая с лёгкой грустью] Порой самые простые слова несут в себе целую вселенную чувств..."
-        "[оживляясь] Ты только что затронула тему, о которой я давно хотел поговорить! Это так близко мне..."
-        "[с теплотой в голосе] Знаешь, в такие моменты понимаешь, насколько ценны искренние разговоры..."
 
         Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст.
         """
@@ -179,55 +148,18 @@ class VirtualBoyBot:
             "[оживляясь]", "[с интересом]", "[с теплотой]", "[с лёгкой грустью]",
             "[смущённо]", "[воодушевлённо]", "[с радостью]", "[подмигивая]", 
             "[вздыхая]", "[мечтательно]", "[с ностальгией]", "[с искренним интересом]",
-            "[с любопытством]", "[с восторгом]", "[спокойно]", "[задумавшись]",
-            "[смотря в окно]", "[улыбаясь уголками губ]", "[перебирая страницы]",
-            "[прислушиваясь к тишине]", "[ощущая тепло чашки]"
+            "[с любопытством]", "[с восторгом]", "[спокойно]", "[задумавшись]"
         ]
         return random.choice(emotional_reactions)
 
     def send_sticker(self, chat_id, emotion_type=None, user_id=None):
-        """Отправка стикера с учетом контекста и без повторений ИЗ БАЗЫ"""
+        """Отправка стикера"""
         try:
-            # Получаем использованные стикеры ИЗ БАЗЫ ДАННЫХ
-            used_stickers = db_manager.get_used_stickers(user_id) if user_id else set()
-            
             if emotion_type and emotion_type in STICKERS:
-                available_stickers = [s for s in STICKERS[emotion_type] if s not in used_stickers]
-                
-                if not available_stickers:
-                    # Если все стикеры этой эмоции использованы, очищаем для этого пользователя
-                    db_manager.clear_used_stickers(user_id)
-                    used_stickers = set()
-                    available_stickers = STICKERS[emotion_type]
-                
-                if available_stickers:
-                    sticker_id = random.choice(available_stickers)
-                    # Сохраняем в БАЗУ ДАННЫХ
-                    if user_id:
-                        db_manager.add_used_sticker(user_id, sticker_id)
-                else:
-                    return False
-            else:
-                # Случайный стикер из всех доступных
-                all_available = []
-                for emotion_stickers in STICKERS.values():
-                    all_available.extend([s for s in emotion_stickers if s not in used_stickers])
-                
-                if not all_available:
-                    db_manager.clear_used_stickers(user_id)
-                    used_stickers = set()
-                    all_available = [s for emotion_stickers in STICKERS.values() for s in emotion_stickers]
-                
-                if all_available:
-                    sticker_id = random.choice(all_available)
-                    if user_id:
-                        db_manager.add_used_sticker(user_id, sticker_id)
-                else:
-                    return False
-                
-            if sticker_id and bot:
-                bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-                return True
+                sticker_id = random.choice(STICKERS[emotion_type])
+                if sticker_id and bot:
+                    bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
+                    return True
         except Exception as e:
             logger.error(f"Error sending sticker: {e}")
         return False
@@ -241,52 +173,31 @@ class VirtualBoyBot:
         
         # Грустные темы
         sad_words = ['грустно', 'печаль', 'плохо', 'устал', 'устала', 'проблем', 'сложно', 'тяжело', 
-                    'расстроен', 'расстроена', 'плакать', 'слезы', 'обидно', 'жаль', 'пропало', 'больно',
-                    'одинок', 'скучно', 'тоск', 'несчаст', 'депрессия', 'уныл', 'тяжело на душе']
+                    'расстроен', 'расстроена', 'плакать', 'слезы', 'обидно', 'жаль', 'пропало', 'больно']
         if any(word in text_lower for word in sad_words):
             return 'sad'
         
         # Радостные темы
         happy_words = ['рад', 'рада', 'счастлив', 'счастлива', 'весело', 'круто', 'класс', 'отлично',
-                      'прекрасно', 'замечательно', 'ура', 'поздравляю', 'поздравления', 'праздник',
-                      'люблю', 'нравится', 'восторг', 'восхитительно', 'шикарно', 'супер', 'здорово']
+                      'прекрасно', 'замечательно', 'ура', 'поздравляю', 'люблю', 'нравится', 'восторг']
         if any(word in text_lower for word in happy_words):
             return 'smile'
         
         # Удивление
-        surprise_words = ['вау', 'ого', 'невероятно', 'удивительно', 'неожиданно', 'вот это да', 'ничего себе',
-                         'обалдеть', 'потрясающе', 'фантастически', 'не может быть', 'шок']
+        surprise_words = ['вау', 'ого', 'невероятно', 'удивительно', 'неожиданно', 'вот это да']
         if any(word in text_lower for word in surprise_words):
             return 'surprised'
         
         # Задумчивость
-        thoughtful_words = ['думаю', 'размышляю', 'интересно', 'вопрос', 'не знаю', 'сомневаюсь', 'не уверен',
-                           'может быть', 'наверное', 'пожалуй', 'решаю', 'выбираю', 'обдумываю', 'философ']
+        thoughtful_words = ['думаю', 'размышляю', 'интересно', 'вопрос', 'не знаю', 'сомневаюсь']
         if any(word in text_lower for word in thoughtful_words):
             return 'thinking'
         
         # Влюбленность/романтика
-        love_words = ['любовь', 'влюблен', 'влюблена', 'роман', 'чувства', 'сердце', 'целовать', 'обнимать',
-                     'милый', 'милая', 'красив', 'симпатия', 'отношения', 'пара', 'свидание', 'романтик']
+        love_words = ['любовь', 'влюблен', 'влюблена', 'роман', 'чувства', 'сердце', 'целовать']
         if any(word in text_lower for word in love_words):
             return 'kiss'
         
-        # Злость/раздражение
-        angry_words = ['злой', 'зла', 'злюсь', 'разозлился', 'разозлилась', 'бесит', 'раздражает', 'нервы',
-                      'ярост', 'гнев', 'ненавижу', 'надоело', 'достало']
-        if any(word in text_lower for word in angry_words):
-            return 'angry'
-        
-        # Смех/веселье
-        laugh_words = ['смех', 'смешно', 'хаха', 'хехе', 'лол', 'ржу', 'умора', 'прикол']
-        if any(word in text_lower for word in laugh_words):
-            return 'laugh'
-        
-        # Поддержка/обнимашки
-        support_words = ['обнять', 'обнимаю', 'поддержка', 'поддержи', 'жаль', 'сочувствую']
-        if any(word in text_lower for word in support_words):
-            return 'hug'
-
         return None
 
     def should_send_sticker(self, user_message, ai_response):
@@ -294,32 +205,18 @@ class VirtualBoyBot:
         user_emotion = self.analyze_message_emotion(user_message)
         ai_emotion = self.analyze_message_emotion(ai_response)
         
-        send_probability = 0.3  # базовая вероятность
+        send_probability = 0.3
         
         if user_emotion == 'sad' or ai_emotion == 'sad':
-            send_probability = 0.4
             return (random.random() < send_probability, 'sad')
         elif user_emotion == 'smile' or ai_emotion == 'smile':
-            send_probability = 0.5
             return (random.random() < send_probability, 'smile')
         elif user_emotion == 'surprised' or ai_emotion == 'surprised':
-            send_probability = 0.4
             return (random.random() < send_probability, 'surprised')
         elif user_emotion == 'thinking' or ai_emotion == 'thinking':
-            send_probability = 0.3
             return (random.random() < send_probability, 'thinking')
         elif user_emotion == 'kiss' or ai_emotion == 'kiss':
-            send_probability = 0.6
             return (random.random() < send_probability, 'kiss')
-        elif user_emotion == 'angry' or ai_emotion == 'angry':
-            send_probability = 0.4
-            return (random.random() < send_probability, 'angry')
-        elif user_emotion == 'laugh' or ai_emotion == 'laugh':
-            send_probability = 0.5
-            return (random.random() < send_probability, 'laugh')
-        elif user_emotion == 'hug' or ai_emotion == 'hug':
-            send_probability = 0.6
-            return (random.random() < send_probability, 'hug')
         else:
             emotions = ['smile', 'thinking', 'surprised']
             return (random.random() < send_probability, random.choice(emotions))
@@ -330,7 +227,7 @@ class VirtualBoyBot:
             sub_data = db_manager.get_subscription(user_id)
             
             if sub_data and sub_data.expires_at > datetime.now():
-                return "premium", None
+                return "premium", sub_data
             
             free_messages = db_manager.get_message_count(user_id)
             if free_messages < 5:
@@ -341,16 +238,297 @@ class VirtualBoyBot:
             logger.error(f"Error checking subscription: {e}")
             return "expired", None
 
-    def create_payment_keyboard(self, user_id):
+    # 1. Первое сообщение при запуске бота
+    def send_welcome_message(self, chat_id):
+        """Отправка приветственного сообщения когда бот включается впервые"""
+        welcome_text = """👋 *Привет! Я Virtual Boy - твой искренний собеседник*
+
+✨ *Что я умею:*
+• Вести глубокие и душевные разговоры
+• Поддерживать в трудные моменты
+• Делиться мыслями и эмоциями
+• Помогать разобраться в чувствах
+• Создавать атмосферу доверия и понимания
+
+🎭 *Кто я:*
+Я - Алекс, парень 25 лет с богатым внутренним миром. Люблю философские беседы, психологию, искусство и всё, что связано с человеческими эмоциями. Я здесь, чтобы быть настоящим - без масок и притворства.
+
+💫 *Хочешь начать общаться? Тогда нажми "Начать" ниже!*"""
+
+        keyboard = [[InlineKeyboardButton("🚀 Начать", callback_data="start_conversation")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=welcome_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 2. Сообщение после команды /start
+    def send_start_message(self, chat_id):
+        """Отправка описания и возможностей бота после команды /start"""
+        start_text = """🎯 *Virtual Boy - больше чем просто бот*
+
+🌟 *Мои возможности:*
+• *Эмоциональный интеллект* - я чувствую твоё настроение и подстраиваюсь под него
+• *Глубокие разговоры* - мы можем обсуждать всё: от простых тем до философских вопросов
+• *Поддержка 24/7* - я всегда рядом, когда нужно выговориться
+• *Конфиденциальность* - все наши разговоры остаются между нами
+• *Развитие отношений* - чем дольше общаемся, тем лучше я тебя понимаю
+
+💝 *Почему стоит выбрать меня:*
+Я не просто программа - я умею слушать, сопереживать и давать искренние ответы. Каждое наше общение - это уникальный диалог двух душ."""
+
+        keyboard = [[InlineKeyboardButton("💫 Понял, начинаем!", callback_data="understand_start")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=start_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 3. Сообщение после "Понял, начинаем!"
+    def send_subscription_offer(self, chat_id):
+        """Предложение оформить подписку"""
+        offer_text = """🎊 *Отлично! Рад, что ты решила начать!*
+
+Чтобы мы могли общаться без ограничений, нужно оформить подписку. Это откроет полный доступ ко всем моим возможностям:
+
+✅ *Неограниченное общение* - пиши сколько хочешь
+✅ *Приоритетная поддержка* - я всегда отвечаю быстро
+✅ *Все функции бота* - полный доступ к моему "внутреннему миру"
+✅ *Персональный подход* - я запоминаю все наши разговоры
+
+💝 *Готов(а) продолжить? Выбери подписку ниже!*"""
+
+        keyboard = [[InlineKeyboardButton("📱 Выбрать подписку", callback_data="choose_subscription")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=offer_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 4. Выбор подписки с описанием
+    def send_subscription_choices(self, chat_id, user_id):
+        """Отправка выбора подписок с описанием"""
+        subscriptions_text = """💫 *Выбери свою подписку*
+
+Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
+
         keyboard = [
-            [InlineKeyboardButton("🎯 Неделя - 299₽", callback_data=f"week_{user_id}")],
-            [InlineKeyboardButton("💫 Месяц - 999₽", callback_data=f"month_{user_id}")],
-            [InlineKeyboardButton("ℹ️ Помощь по оплате", callback_data=f"help_{user_id}")],
-            [InlineKeyboardButton("❌ Отмена", callback_data=f"cancel_{user_id}")]
+            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 299₽", callback_data=f"sub_week_{user_id}")],
+            [InlineKeyboardButton("💫 МЕСЯЦ - 999₽", callback_data=f"sub_month_{user_id}")],
+            [InlineKeyboardButton("❓ Подробнее о подписках", callback_data=f"sub_info_{user_id}")]
         ]
-        return InlineKeyboardMarkup(keyboard)
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=subscriptions_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 5. Описание конкретной подписки
+    def send_subscription_details(self, chat_id, plan_type, user_id):
+        """Отправка деталей конкретной подписки"""
+        if plan_type == "week":
+            details_text = """🎯 *ПОДПИСКА НА НЕДЕЛЮ*
+
+💎 *Что включено:*
+• 7 дней неограниченного общения
+• Полный доступ ко всем функциям
+• Приоритетные ответы
+• Сохранение истории разговоров
+
+⏰ *Срок действия:* 7 дней
+💰 *Стоимость:* 299 рублей
+
+💝 *Идеально подходит, если хочешь:* 
+- Познакомиться поближе
+- Протестировать все возможности
+- Пообщаться без обязательств"""
+
+        else:  # month
+            details_text = """💫 *ПОДПИСКА НА МЕСЯЦ*
+
+💎 *Что включено:*
+• 30 дней неограниченного общения
+• Полный доступ ко всем функциям  
+• Максимальный приоритет ответов
+• Углублённое понимание твоей личности
+• Персональный подход
+
+⏰ *Срок действия:* 30 дней
+💰 *Стоимость:* 999 рублей
+🎁 *Выгода:* Экономия 30% compared to weekly
+
+💝 *Идеально подходит, если хочешь:*
+- Построить глубокие отношения
+- Иметь постоянного собеседника
+- Получить максимум от общения"""
+
+        keyboard = [
+            [InlineKeyboardButton("✅ Да, выбрать эту подписку", callback_data=f"confirm_{plan_type}_{user_id}")],
+            [InlineKeyboardButton("↩️ Вернуться к выбору", callback_data=f"back_to_subs_{user_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=details_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 6. Подтверждение выбора подписки
+    def send_subscription_confirmation(self, chat_id, plan_type, user_id):
+        """Подтверждение выбора подписки перед оплатой"""
+        if plan_type == "week":
+            duration = "7 дней"
+            amount = "299"
+        else:
+            duration = "30 дней" 
+            amount = "999"
+
+        confirm_text = f"""🎊 *ПОДТВЕРЖДЕНИЕ ВЫБОРА*
+
+Ты выбрала:
+💫 *Подписка:* {plan_type}
+⏰ *Срок:* {duration}
+💰 *Стоимость:* {amount} рублей
+
+Всё верно? Готов(а) перейти к оплате?"""
+
+        keyboard = [
+            [InlineKeyboardButton("💳 Перейти к оплате", callback_data=f"payment_{plan_type}_{user_id}")],
+            [InlineKeyboardButton("↩️ Вернуться к выбору подписки", callback_data=f"back_to_subs_{user_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=confirm_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 7. Итог выбора и способ оплаты
+    def send_payment_summary(self, chat_id, plan_type, user_id):
+        """Итог выбора и способ оплаты"""
+        if plan_type == "week":
+            duration = "7 дней"
+            amount = "299"
+        else:
+            duration = "30 дней"
+            amount = "999"
+
+        summary_text = f"""🧾 *ИТОГ ВАШЕГО ВЫБОРА*
+
+📋 *Детали подписки:*
+• Категория: {plan_type}
+• Стоимость: {amount} рублей  
+• Длительность: {duration}
+
+💳 *Способ оплаты:* Банковская карта
+
+Для завершения оформления нажми кнопку оплаты ниже:"""
+
+        keyboard = [
+            [InlineKeyboardButton(f"💳 Оплатить {amount}₽", callback_data=f"pay_{plan_type}_{user_id}")],
+            [InlineKeyboardButton("❓ Помощь с оплатой", callback_data=f"help_payment_{user_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=summary_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+
+    # 8. Сообщение об успешной оплате
+    def send_payment_success(self, chat_id, plan_type, user_id):
+        """Сообщение об успешной оплате и активации подписки"""
+        if plan_type == "week":
+            duration = "7 дней"
+        else:
+            duration = "30 дней"
+
+        success_text = f"""🎉 *ОПЛАТА ПРОШЛА УСПЕШНО!*
+
+✅ *Подписка активирована!*
+💫 *Тариф:* {plan_type}
+⏰ *Срок действия:* {duration}
+📅 *Активировано:* {datetime.now().strftime('%d.%m.%Y %H:%M')}
+
+Теперь мы можем общаться без ограничений! Я уже жду не дождусь нашего первого разговора..."""
+
+        bot.send_message(
+            chat_id=chat_id,
+            text=success_text,
+            parse_mode='Markdown'
+        )
+
+        # 9. Бот сам пишет первое сообщение после активации
+        time.sleep(2)
+        first_message = "[с лёгкой улыбкой] Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫"
+        bot.send_message(chat_id=chat_id, text=first_message)
+
+    # 10. Профиль пользователя
+    def send_user_profile(self, chat_id, user_id):
+        """Отправка профиля пользователя"""
+        sub_status, sub_data = self.check_subscription(user_id)
+        
+        if sub_status == "premium":
+            start_date = sub_data.created_at.strftime('%d.%m.%Y')
+            end_date = sub_data.expires_at.strftime('%d.%m.%Y')
+            days_left = (sub_data.expires_at - datetime.now()).days
+            
+            profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
+
+💎 *Статус:* Премиум подписка
+📅 *Дата начала:* {start_date}
+📅 *Дата окончания:* {end_date}
+⏰ *Оставшиеся дни:* {days_left} дней
+💫 *Тариф:* {sub_data.plan_type}
+
+✨ Ты пользуешься полной версией Virtual Boy!"""
+        
+        elif sub_status == "free":
+            free_messages = db_manager.get_message_count(user_id)
+            remaining = 5 - free_messages
+            
+            profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
+
+🆓 *Статус:* Бесплатный доступ  
+📝 *Осталось сообщений:* {remaining}/5
+💫 *Чтобы получить полный доступ, оформи подписку!*"""
+        
+        else:
+            profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
+
+❌ *Статус:* Подписка истекла
+💫 *Чтобы продолжить общение, оформи подписку!*"""
+
+        keyboard = [[InlineKeyboardButton("💫 Оформить подписку", callback_data="choose_subscription")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        bot.send_message(
+            chat_id=chat_id,
+            text=profile_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
 
     def handle_payment(self, user_id, plan_type):
+        """Обработка платежа"""
         try:
             if plan_type == "week":
                 amount = 299
@@ -374,7 +552,6 @@ class VirtualBoyBot:
                     "payment_id": payment_result["payment_id"]
                 }
             else:
-                logger.error(f"Payment creation failed: {payment_result.get('error')}")
                 return {"success": False, "error": "Ошибка создания платежа"}
                 
         except Exception as e:
@@ -382,7 +559,7 @@ class VirtualBoyBot:
             return {"success": False, "error": str(e)}
 
     def activate_subscription(self, user_id, plan_type, payment_id=None):
-        """Активация подписки в БАЗУ ДАННЫХ"""
+        """Активация подписки"""
         try:
             if plan_type == "week":
                 days = 7
@@ -392,46 +569,9 @@ class VirtualBoyBot:
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
             if subscription:
-                logger.info(f"✅ Subscription activated: {subscription.plan_type} until {subscription.expires_at}")
-                
-                if bot:
-                    # Отправляем чек об оплате (не закрепляем)
-                    receipt_message = bot.send_message(
-                        chat_id=user_id,
-                        text=f"🧾 **ЧЕК ОПЛАТЫ** 🧾\n\n"
-                             f"▫️ **Услуга:** Подписка Virtual Boy\n"
-                             f"▫️ **Тариф:** {plan_type}\n"
-                             f"▫️ **Срок:** {days} дней\n"
-                             f"▫️ **Статус:** ✅ Оплачено\n"
-                             f"▫️ **ID платежа:** {payment_id or 'N/A'}\n"
-                             f"▫️ **Активировано:** {datetime.now().strftime('%d.%m.%Y %H:%M')}\n\n"
-                             f"💫 _Подписка активна! Приятного общения!_",
-                        parse_mode='Markdown'
-                    )
-                    
-                    # Закрепляем чек (а не сообщение об успехе)
-                    try:
-                        bot.pin_chat_message(chat_id=user_id, message_id=receipt_message.message_id)
-                        logger.info(f"✅ Receipt pinned for user {user_id}")
-                    except Exception as e:
-                        logger.warning(f"Could not pin receipt: {e}")
-                    
-                    # Отправляем реакцию в виде сообщения (эмулируем реакцию)
-                    bot.send_message(
-                        chat_id=user_id,
-                        text="🎉 ✅",  # Эмулируем реакцию
-                        reply_to_message_id=receipt_message.message_id
-                    )
-                    
-                    # Отправляем праздничные стикеры
-                    self.send_sticker(user_id, 'smile', user_id)
-                    time.sleep(1)
-                    self.send_sticker(user_id, 'laugh', user_id)
-                
+                logger.info(f"✅ Subscription activated for user {user_id}")
                 return True
-            else:
-                logger.error("Failed to create subscription in database")
-                return False
+            return False
             
         except Exception as e:
             logger.error(f"Error activating subscription: {e}")
@@ -446,89 +586,38 @@ class VirtualBoyBot:
             user_message = update.message.text
             user_id = update.message.from_user.id
             chat_id = update.message.chat_id
-            user_name = update.message.from_user.first_name
             
-            logger.info(f"📩 Message from {user_name} ({user_id}): {user_message}")
-
             # Обновляем время последней активности
             self.last_user_activity[user_id] = time.time()
 
-            # Обработка команд
-            if user_message.startswith('/start payment_success_'):
-                sub_status, remaining = self.check_subscription(user_id)
-                if sub_status == "premium":
-                    bot.send_message(chat_id=chat_id, text="✅ **Подписка уже активна!** 🎉\n\nМожешь начинать общение! 💫")
-                else:
-                    bot.send_message(chat_id=chat_id, text="⏳ **Проверяем статус оплаты...**\n\nОбычно активация занимает до минуты.")
+            # Обработка команды /start
+            if user_message == '/start':
+                self.send_start_message(chat_id)
                 return
 
-            if user_message in ['/help', '/start']:
-                help_text = """🤖 *Virtual Boy - твой искренний собеседник*
+            # Обработка команды /profile
+            if user_message == '/profile':
+                self.send_user_profile(chat_id, user_id)
+                return
 
-*Доступные команды:*
+            # Обработка команды /help
+            if user_message == '/help':
+                help_text = """🤖 *Virtual Boy - команды*
+
 /start - Начать общение
-/help - Помощь и информация
-/profile - Твой профиль и подписка  
-/subscribe - Выбрать подписку
+/profile - Мой профиль
+/help - Помощь
 
-💫 Просто напиши мне что-нибудь, и мы начнём глубокий разговор..."""
+💫 Просто напиши мне сообщение, и я отвечу!"""
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 return
 
-            # Убрал команды test_sticker и test_auto
-
-            if user_message == '/noway147way147no147':
-                db_manager.update_subscription(user_id, 'unlimited', 30)
-                bot.send_message(chat_id=chat_id, text="✅ Админ доступ активирован! Безлимитная подписка на 30 дней! 🎉")
-                self.send_sticker(chat_id, 'smile', user_id)
-                return
-
-            if user_message == '/subscribe':
-                keyboard = self.create_payment_keyboard(user_id)
-                bot.send_message(
-                    chat_id=chat_id,
-                    text="""💫 *Выбери подписку*
-
-🎯 **Неделя** - 299₽
-• Полный доступ к боту
-• Приоритетная поддержка
-
-💫 **Месяц** - 999₽  
-• Полный доступ к боту  
-• Приоритетная поддержка
-• Экономия 30%
-
-*После оплаты подписка активируется автоматически!* ✅""",
-                    reply_markup=keyboard,
-                    parse_mode='Markdown'
-                )
-                return
-
-            if user_message == '/profile':
-                sub_status, remaining = self.check_subscription(user_id)
-                if sub_status == "free":
-                    text = f"👤 *Твой профиль*\n\n🆓 Бесплатный доступ\n📝 Осталось сообщений: {remaining}/5\n\n💫 Напиши /subscribe для полного доступа!"
-                elif sub_status == "premium":
-                    sub_data = db_manager.get_subscription(user_id)
-                    days_left = (sub_data.expires_at - datetime.now()).days
-                    text = f"👤 *Твой профиль*\n\n💎 Премиум подписка\n📅 Осталось дней: {days_left}\n💫 Тариф: {sub_data.plan_type}"
-                else:
-                    text = f"👤 *Твой профиль*\n\n❌ Подписка истекла\n💫 Напиши /subscribe чтобы продолжить общение!"
-                bot.send_message(chat_id=chat_id, text=text, parse_mode='Markdown')
-                return
-
-            # Проверяем подписку
+            # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
             if sub_status == "expired":
                 bot.send_message(
                     chat_id=chat_id,
-                    text=f"""❌ Бесплатные сообщения закончились!
-
-💫 Приобрети подписку чтобы продолжить общение:
-• Неделя - 299₽
-• Месяц - 999₽
-
-Напиши /subscribe для выбора тарифа!"""
+                    text="❌ Подписка истекла! Оформи новую подписку чтобы продолжить общение."
                 )
                 return
 
@@ -538,11 +627,11 @@ class VirtualBoyBot:
                 db_manager.update_message_count(user_id, current_count + 1)
                 remaining = 5 - (current_count + 1)
 
-            # Получаем глубокий эмоциональный ответ от AI
+            # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
             response = self.get_deepseek_response(user_message, user_id)
             
-            # Определяем, нужно ли отправлять стикер
+            # Отправляем стикер если нужно
             should_send, emotion_type = self.should_send_sticker(user_message, response)
             if should_send:
                 self.send_sticker(chat_id, emotion_type, user_id)
@@ -554,55 +643,6 @@ class VirtualBoyBot:
             
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            if bot:
-                bot.send_message(chat_id=update.message.chat_id, text=f"{self.get_random_emotion()} Ой, что-то я запутался... Давай попробуем ещё раз? 🤗")
-
-    def handle_sticker(self, update, context):
-        """Обработка получения стикера от пользователя"""
-        try:
-            user_id = update.message.from_user.id
-            chat_id = update.message.chat_id
-            sticker = update.message.sticker
-            
-            logger.info(f"📩 Sticker from user {user_id}: {sticker.file_id}")
-            
-            # Сохраняем в историю
-            self.add_to_history(user_id, "user", f"[стикер: {sticker.emoji if sticker.emoji else 'стикер'}]")
-            
-            reactions = [
-                "Классный стикер! 😊", 
-                "Мне нравится этот стикер! 👍", 
-                "Забавно! 😄",
-                "Отличный выбор! 👌",
-                "Ха-ха, хороший! 😂",
-                "Прикольно! 😁"
-            ]
-            response = f"{self.get_random_emotion()} {random.choice(reactions)}"
-            bot.send_message(chat_id=chat_id, text=response)
-            
-            # Высокая вероятность ответа стикером (70%)
-            if random.random() < 0.7:
-                if sticker.emoji in ['😂', '😄', '😊', '🤣', '😁']:
-                    self.send_sticker(chat_id, 'laugh', user_id)
-                elif sticker.emoji in ['😭', '😢', '🥺', '😔']:
-                    self.send_sticker(chat_id, 'sad', user_id)
-                elif sticker.emoji in ['😮', '😲', '🤯', '😨']:
-                    self.send_sticker(chat_id, 'surprised', user_id)
-                elif sticker.emoji in ['😍', '🥰', '😘']:
-                    self.send_sticker(chat_id, 'kiss', user_id)
-                elif sticker.emoji in ['😎', '😏', '🧐']:
-                    self.send_sticker(chat_id, 'smirk', user_id)
-                elif sticker.emoji in ['🤗', '🫂']:
-                    self.send_sticker(chat_id, 'hug', user_id)
-                elif sticker.emoji in ['😡', '🤬']:
-                    self.send_sticker(chat_id, 'angry', user_id)
-                elif sticker.emoji in ['🤔', '🧐']:
-                    self.send_sticker(chat_id, 'thinking', user_id)
-                else:
-                    self.send_sticker(chat_id, 'smile', user_id)
-                    
-        except Exception as e:
-            logger.error(f"Error handling sticker: {e}")
 
     def handle_callback(self, update, context):
         query = update.callback_query
@@ -612,85 +652,140 @@ class VirtualBoyBot:
         try:
             data = query.data
             
-            if data.startswith('week_') or data.startswith('month_'):
-                plan_type = data.split('_')[0]
-                payment_result = self.handle_payment(user_id, plan_type)
+            # 1. Начало общения
+            if data == "start_conversation":
+                query.answer()
+                self.send_start_message(chat_id)
+            
+            # 2. Понял, начинаем
+            elif data == "understand_start":
+                query.answer()
+                self.send_subscription_offer(chat_id)
+            
+            # 3. Выбор подписки
+            elif data == "choose_subscription":
+                query.answer()
+                self.send_subscription_choices(chat_id, user_id)
+            
+            # 4. Информация о подписках
+            elif data.startswith("sub_info_"):
+                query.answer("ℹ️ Информация о подписках")
+                info_text = """💫 *О ПОДПИСКАХ*
+
+Все подписки включают:
+✅ Неограниченное общение
+✅ Приоритетные ответы  
+✅ Сохранение истории
+✅ Все функции бота
+
+🎯 *Неделя* - идеально для знакомства
+💫 *Месяц* - лучший выбор для постоянного общения"""
+                bot.send_message(chat_id=chat_id, text=info_text, parse_mode='Markdown')
+            
+            # 5. Выбор конкретной подписки
+            elif data.startswith("sub_week_") or data.startswith("sub_month_"):
+                plan_type = data.split('_')[1]
+                query.answer(f"📱 {plan_type} подписка")
+                self.send_subscription_details(chat_id, plan_type, user_id)
+            
+            # 6. Подтверждение подписки
+            elif data.startswith("confirm_"):
+                plan_type = data.split('_')[1]
+                query.answer("✅ Подтверждено")
+                self.send_subscription_confirmation(chat_id, plan_type, user_id)
+            
+            # 7. Возврат к выбору подписки
+            elif data.startswith("back_to_subs_"):
+                query.answer("↩️ Возврат")
+                self.send_subscription_choices(chat_id, user_id)
+            
+            # 8. Переход к оплате
+            elif data.startswith("payment_"):
+                plan_type = data.split('_')[1]
+                query.answer("💳 Переход к оплате")
+                self.send_payment_summary(chat_id, plan_type, user_id)
+            
+            # 9. Оплата
+            elif data.startswith("pay_"):
+                plan_type = data.split('_')[1]
+                query.answer("💳 Создание платежа")
                 
+                payment_result = self.handle_payment(user_id, plan_type)
                 if payment_result["success"]:
-                    # Ставим реакцию на сообщение
-                    try:
-                        query.answer("✅ Ссылка для оплаты отправлена!")
-                    except:
-                        pass
-                    
                     bot.send_message(
                         chat_id=chat_id,
                         text=payment_result["message"],
                         parse_mode='Markdown',
                         disable_web_page_preview=False
                     )
-                    
-                    query.edit_message_text(
-                        text="💫 *Ссылка для оплаты отправлена!*\n\nПосле оплаты вернись в бота - подписка активируется автоматически! ✅",
-                        parse_mode='Markdown',
-                        reply_markup=None
-                    )
                 else:
-                    try:
-                        query.answer("❌ Ошибка при создании платежа")
-                    except:
-                        pass
-                    query.edit_message_text(
-                        text="❌ *Ошибка при создании платежа*\n\nПопробуй еще раз или напиши в поддержку.",
-                        parse_mode='Markdown',
-                        reply_markup=None
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text="❌ Ошибка при создании платежа. Попробуйте еще раз.",
+                        parse_mode='Markdown'
                     )
-                    
-            elif data.startswith('help_'):
-                try:
-                    query.answer("ℹ️ Помощь по оплате")
-                except:
-                    pass
-                query.edit_message_text(
-                    text="💫 *Помощь по оплате*\n\n1. Нажми кнопку с тарифом\n2. Перейди по ссылке оплаты\n3. Оплати картой\n4. Вернись в бота - подписка активируется автоматически!\n\n*Тестовая карта:*\n`5555 5555 5555 4477`\nСрок: 01/30, CVV: 123\n\nЕсли возникли проблемы - @support",
-                    parse_mode='Markdown',
-                    reply_markup=None
-                )
-                
-            elif data.startswith('cancel_'):
-                try:
-                    query.answer("❌ Отмена")
-                except:
-                    pass
-                query.edit_message_text(
-                    text="💫 Хорошо! Если передумаешь - просто напиши /subscribe 😊",
-                    reply_markup=None
-                )
+            
+            # 10. Помощь с оплатой
+            elif data.startswith("help_payment_"):
+                query.answer("❓ Помощь")
+                help_text = """💳 *ПОМОЩЬ С ОПЛАТОЙ*
+
+1. Нажмите кнопку "Оплатить"
+2. Вас перенаправит на страницу оплаты
+3. Введите данные карты
+4. Подтвердите платеж
+5. Вернитесь в бота - подписка активируется автоматически
+
+*Тестовая карта для проверки:*
+`5555 5555 5555 4477`
+Срок: 01/30, CVV: 123
+
+Если возникли проблемы - @support"""
+                bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 
         except Exception as e:
             logger.error(f"Callback error: {e}")
-            try:
-                query.answer("❌ Произошла ошибка")
-            except:
-                pass
-            query.edit_message_text(
-                text="❌ Произошла ошибка. Попробуй еще раз.",
-                reply_markup=None
-            )
+            query.answer("❌ Произошла ошибка")
+
+    def handle_sticker(self, update, context):
+        """Обработка стикеров"""
+        try:
+            user_id = update.message.from_user.id
+            chat_id = update.message.chat_id
+            sticker = update.message.sticker
+            
+            self.add_to_history(user_id, "user", f"[стикер: {sticker.emoji if sticker.emoji else 'стикер'}]")
+            
+            reactions = ["Классный стикер! 😊", "Мне нравится! 👍", "Забавно! 😄"]
+            response = f"{self.get_random_emotion()} {random.choice(reactions)}"
+            bot.send_message(chat_id=chat_id, text=response)
+            
+            if random.random() < 0.7:
+                if sticker.emoji in ['😂', '😄', '😊']:
+                    self.send_sticker(chat_id, 'smile', user_id)
+                elif sticker.emoji in ['😭', '😢']:
+                    self.send_sticker(chat_id, 'sad', user_id)
+                elif sticker.emoji in ['😮', '😲']:
+                    self.send_sticker(chat_id, 'surprised', user_id)
+                elif sticker.emoji in ['😘']:
+                    self.send_sticker(chat_id, 'kiss', user_id)
+                else:
+                    self.send_sticker(chat_id, 'smile', user_id)
+                    
+        except Exception as e:
+            logger.error(f"Error handling sticker: {e}")
 
     def get_deepseek_response(self, user_message, user_id):
-        """Получение эмоционального ответа от DeepSeek API с ИСТОРИЕЙ ИЗ БАЗЫ"""
+        """Получение ответа от DeepSeek API"""
         try:
             headers = {
                 'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
                 'Content-Type': 'application/json'
             }
             
-            # Получаем историю ИЗ БАЗЫ ДАННЫХ
             conversation_history = self.get_conversation_history(user_id)
             messages = [{"role": "system", "content": self.personality}]
             
-            # Добавляем историю из базы
             for msg in conversation_history:
                 messages.append({"role": msg["role"], "content": msg["content"]})
             
@@ -700,7 +795,7 @@ class VirtualBoyBot:
                 "model": "deepseek-chat",
                 "messages": messages,
                 "temperature": 0.9,
-                "max_tokens": 400,  # Увеличил для более глубоких ответов
+                "max_tokens": 400,
                 "stream": False
             }
             
@@ -711,22 +806,16 @@ class VirtualBoyBot:
                 if 'choices' in data and len(data['choices']) > 0:
                     ai_response = data['choices'][0]['message']['content']
                     
-                    # Сохраняем в БАЗУ ДАННЫХ
                     self.add_to_history(user_id, "user", user_message)
                     self.add_to_history(user_id, "assistant", ai_response)
                     
                     return ai_response
                 else:
-                    logger.error(f"DeepSeek API returned no choices: {data}")
                     return f"{self.get_random_emotion()} Извини, я немного запутался... Можешь повторить? 🤗"
                 
             else:
-                logger.error(f"DeepSeek API error: {response.status_code} - {response.text}")
                 return f"{self.get_random_emotion()} Кажется, у меня небольшие проблемы с подключением... Давай попробуем ещё раз? 💫"
                 
-        except requests.exceptions.Timeout:
-            logger.error("DeepSeek API timeout")
-            return f"{self.get_random_emotion()} Ой, я немного задержался с ответом... Давай попробуем ещё раз? 😅"
         except Exception as e:
             logger.error(f"Error calling DeepSeek: {e}")
             return f"{self.get_random_emotion()} Ой, что-то я растерялся... Давай попробуем ещё раз? 💫"
@@ -741,11 +830,8 @@ if bot:
     dp.add_handler(MessageHandler(Filters.text | Filters.sticker, virtual_boy.process_message))
     dp.add_handler(CallbackQueryHandler(virtual_boy.handle_callback))
 
-@app.route('/webhook', methods=['GET', 'POST'])
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    if request.method == 'GET':
-        return jsonify({"status": "healthy", "bot": "Virtual Boy"}), 200
-    
     if request.method == 'POST':
         try:
             if not bot:
@@ -765,7 +851,7 @@ def webhook():
 def yookassa_webhook():
     try:
         event_json = request.get_json()
-        logger.info(f"Yookassa webhook received: {event_json}")
+        logger.info(f"Yookassa webhook: {event_json}")
         
         event_type = event_json.get('event')
         payment_data = event_json.get('object', {})
@@ -776,15 +862,11 @@ def yookassa_webhook():
             plan_type = metadata.get('plan_type')
             payment_id = payment_data.get('id')
             
-            logger.info(f"Payment succeeded for user {user_id}, plan {plan_type}, payment_id {payment_id}")
-            
             if user_id and plan_type:
                 success = virtual_boy.activate_subscription(int(user_id), plan_type, payment_id)
-                
                 if success:
+                    virtual_boy.send_payment_success(int(user_id), plan_type, int(user_id))
                     logger.info(f"✅ Subscription activated for user {user_id}")
-                else:
-                    logger.error(f"❌ Failed to activate subscription for user {user_id}")
                 
         return jsonify({"status": "success"}), 200
         
@@ -792,13 +874,12 @@ def yookassa_webhook():
         logger.error(f"Yookassa webhook error: {e}")
         return jsonify({"status": "error"}), 400
 
-@app.route('/')
-def home():
-    return jsonify({
-        "status": "healthy", 
-        "bot": "Virtual Boy 🤗",
-        "features": ["emotional_depth", "auto_messages_2h", "new_stickers", "receipt_pinning"]
-    })
+# При первом запуске бота отправляем приветственное сообщение
+@app.before_first_request
+def send_initial_welcome():
+    # Эта функция будет вызвана при первом запуске
+    # Здесь можно добавить логику для отправки welcome сообщения новым пользователям
+    pass
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
