@@ -41,8 +41,8 @@ STICKERS = {
     'hug': ['CAACAgIAAxkBAAOraPU01P5HxysGmmJBxKgoFVBRAzsAAlGQAAIPNqhLK0YvfrVaax42BA']
 }
 
-# Состояния пользователей для многошагового процесса
-user_states = {}
+# Флаг для отслеживания первого запуска
+first_request = True
 
 class VirtualBoyBot:
     def __init__(self):
@@ -874,12 +874,21 @@ def yookassa_webhook():
         logger.error(f"Yookassa webhook error: {e}")
         return jsonify({"status": "error"}), 400
 
-# При первом запуске бота отправляем приветственное сообщение
-@app.before_first_request
-def send_initial_welcome():
-    # Эта функция будет вызвана при первом запуске
-    # Здесь можно добавить логику для отправки welcome сообщения новым пользователям
-    pass
+@app.route('/')
+def home():
+    global first_request
+    if first_request:
+        first_request = False
+        logger.info("🚀 Bot started for the first time")
+        # Здесь можно добавить логику для отправки welcome сообщений
+        # при первом запуске бота, если нужно
+        
+    return jsonify({
+        "status": "healthy", 
+        "bot": "Virtual Boy 🤗",
+        "version": "2.0",
+        "features": ["emotional_depth", "auto_messages", "subscription_flow"]
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
