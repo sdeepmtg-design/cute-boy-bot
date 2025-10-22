@@ -243,6 +243,21 @@ class VirtualBoyBot:
             logger.error(f"Error checking subscription: {e}")
             return "expired", None
 
+    def get_russian_plan_name(self, plan_type):
+        """Получение русского названия тарифа"""
+        plan_names = {
+            "week": "Неделя",
+            "month": "Месяц",
+            "unlimited": "Безлимит"
+        }
+        return plan_names.get(plan_type, plan_type)
+
+    def get_local_time(self):
+        """Получение локального времени (Москва)"""
+        # Добавляем 3 часа для московского времени
+        moscow_time = datetime.now() + timedelta(hours=3)
+        return moscow_time.strftime('%d.%m.%Y %H:%M')
+
     # 1. Первое сообщение при запуске бота
     def send_welcome_message(self, chat_id):
         """Отправка приветственного сообщения когда бот включается впервые"""
@@ -343,8 +358,10 @@ class VirtualBoyBot:
     # 5. Описание конкретной подписки
     def send_subscription_details(self, chat_id, plan_type, user_id):
         """Отправка деталей конкретной подписки"""
+        russian_plan_name = self.get_russian_plan_name(plan_type)
+        
         if plan_type == "week":
-            details_text = """🎯 *ПОДПИСКА НА НЕДЕЛЮ*
+            details_text = f"""🎯 *ПОДПИСКА НА НЕДЕЛЮ*
 
 💎 *Что включено:*
 • 7 дней неограниченного общения
@@ -361,7 +378,7 @@ class VirtualBoyBot:
 - Пообщаться без обязательств"""
 
         else:  # month
-            details_text = """💫 *ПОДПИСКА НА МЕСЯЦ*
+            details_text = f"""💫 *ПОДПИСКА НА МЕСЯЦ*
 
 💎 *Что включено:*
 • 30 дней неограниченного общения
@@ -395,19 +412,19 @@ class VirtualBoyBot:
     # 6. Подтверждение выбора подписки
     def send_subscription_confirmation(self, chat_id, plan_type, user_id):
         """Подтверждение выбора подписки перед оплатой"""
+        russian_plan_name = self.get_russian_plan_name(plan_type)
+        
         if plan_type == "week":
             duration = "7 дней"
             amount = "299"
-            plan_name = "Неделя"
         else:
             duration = "30 дней" 
             amount = "999"
-            plan_name = "Месяц"
 
         confirm_text = f"""🎊 *ПОДТВЕРЖДЕНИЕ ВЫБОРА*
 
 Ты выбрала:
-💫 *Подписка:* {plan_name}
+💫 *Подписка:* {russian_plan_name}
 ⏰ *Срок:* {duration}
 💰 *Стоимость:* {amount} рублей
 
@@ -429,22 +446,19 @@ class VirtualBoyBot:
     # 7. Итог выбора и способ оплаты
     def send_payment_summary(self, chat_id, plan_type, user_id):
         """Итог выбора и способ оплаты"""
+        russian_plan_name = self.get_russian_plan_name(plan_type)
+        
         if plan_type == "week":
             duration = "7 дней"
             amount = "299"
-            plan_name = "Неделя"
         else:
             duration = "30 дней"
             amount = "999"
-            plan_name = "Месяц"
-
-        # Получаем локальное время
-        local_time = datetime.now().strftime('%d.%m.%Y %H:%M')
 
         summary_text = f"""🧾 *ИТОГ ВАШЕГО ВЫБОРА*
 
 📋 *Детали подписки:*
-• Категория: {plan_name}
+• Категория: {russian_plan_name}
 • Стоимость: {amount} рублей  
 • Длительность: {duration}
 
@@ -468,22 +482,30 @@ class VirtualBoyBot:
     # 8. Сообщение об успешной оплате
     def send_payment_success(self, chat_id, plan_type, user_id):
         """Сообщение об успешной оплате и активации подписки"""
+        russian_plan_name = self.get_russian_plan_name(plan_type)
+        
         if plan_type == "week":
             duration = "7 дней"
-            plan_name = "Неделя"
+            amount = "299"
         else:
             duration = "30 дней"
-            plan_name = "Месяц"
+            amount = "999"
 
-        # Получаем локальное время
-        local_time = datetime.now().strftime('%d.%m.%Y %H:%M')
+        local_time = self.get_local_time()
 
         success_text = f"""🎉 *ОПЛАТА ПРОШЛА УСПЕШНО!*
 
+💳 *Сумма оплаты:* {amount} рублей
 ✅ *Подписка активирована!*
-💫 *Тариф:* {plan_name}
+💫 *Тариф:* {russian_plan_name}
 ⏰ *Срок действия:* {duration}
 📅 *Активировано:* {local_time}
+
+✨ *Теперь у тебя есть:*
+• Неограниченное общение
+• Приоритетные ответы
+• Полный доступ к функциям
+• Сохранение истории разговоров
 
 Теперь мы можем общаться без ограничений! Я уже жду не дождусь нашего первого разговора..."""
 
@@ -493,25 +515,25 @@ class VirtualBoyBot:
             parse_mode='Markdown'
         )
 
-        # 9. Бот сам пишет первое сообщение после активации
+        # Отправляем стикер для праздничного настроения
+        self.send_sticker(chat_id, 'smile', user_id)
+        
+        # Бот сам пишет первое сообщение после активации
         time.sleep(2)
         first_message = "[с лёгкой улыбкой] Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫"
         bot.send_message(chat_id=chat_id, text=first_message)
 
-    # 10. Профиль пользователя
+    # 9. Профиль пользователя
     def send_user_profile(self, chat_id, user_id):
         """Отправка профиля пользователя"""
         try:
             sub_status, sub_data = self.check_subscription(user_id)
             
             if sub_status == "premium":
-                # Используем правильные названия атрибутов из модели
-                start_date = sub_data.created_at.strftime('%d.%m.%Y') if hasattr(sub_data, 'created_at') else "Неизвестно"
+                start_date = sub_data.activated_at.strftime('%d.%m.%Y')
                 end_date = sub_data.expires_at.strftime('%d.%m.%Y')
                 days_left = (sub_data.expires_at - datetime.now()).days
-                
-                # Преобразуем название тарифа на русский
-                plan_name = "Неделя" if sub_data.plan_type == "week" else "Месяц"
+                russian_plan_name = self.get_russian_plan_name(sub_data.plan_type)
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
@@ -519,7 +541,7 @@ class VirtualBoyBot:
 📅 *Дата начала:* {start_date}
 📅 *Дата окончания:* {end_date}
 ⏰ *Оставшиеся дни:* {days_left} дней
-💫 *Тариф:* {plan_name}
+💫 *Тариф:* {russian_plan_name}
 
 ✨ Ты пользуешься полной версией Virtual Boy!"""
             
@@ -553,7 +575,8 @@ class VirtualBoyBot:
             logger.error(f"Error sending user profile: {e}")
             bot.send_message(
                 chat_id=chat_id,
-                text="❌ Произошла ошибка при загрузке профиля. Попробуйте позже."
+                text="❌ Произошла ошибка при загрузке профиля. Попробуйте позже.",
+                parse_mode='Markdown'
             )
 
     def handle_payment(self, user_id, plan_type):
@@ -642,7 +665,7 @@ class VirtualBoyBot:
                 return
 
             # Проверяем подписку для обычных сообщений
-            sub_status, sub_data = self.check_subscription(user_id)
+            sub_status, remaining = self.check_subscription(user_id)
             if sub_status == "expired":
                 bot.send_message(
                     chat_id=chat_id,
@@ -913,8 +936,8 @@ def home():
     return jsonify({
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
-        "version": "2.0",
-        "features": ["emotional_depth", "auto_messages", "subscription_flow"]
+        "version": "2.1",
+        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui"]
     })
 
 if __name__ == '__main__':
