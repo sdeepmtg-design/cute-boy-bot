@@ -6,7 +6,7 @@ import random
 import time
 import threading
 from datetime import datetime, timedelta
-from payment import YookassaPayment
+from payment import YookassaPayment, check_yookassa_config
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
 
 app = Flask(__name__)
@@ -18,6 +18,9 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
+
+# Проверяем конфигурацию ЮKassa
+YOOKASSA_REAL_MODE = check_yookassa_config(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
 
 if not BOT_TOKEN:
     bot = None
@@ -584,27 +587,41 @@ class VirtualBoyBot:
         try:
             if plan_type == "week":
                 amount = 299
-                description = "Подписка на неделю"
+                description = "Подписка Virtual Boy на неделю"
             else:
                 amount = 999
-                description = "Подписка на месяц"
+                description = "Подписка Virtual Boy на месяц"
             
+            # Создаем экземпляр ЮKassa
             yookassa = YookassaPayment(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
-            payment_result = yookassa.create_payment_link(
-                amount=amount,
-                description=description,
-                user_id=user_id,
-                plan_type=plan_type
-            )
+            
+            # Проверяем режим работы (реальный или тестовый)
+            if YOOKASSA_REAL_MODE:
+                logger.info(f"Creating REAL payment for user {user_id}, plan: {plan_type}")
+                payment_result = yookassa.create_payment_link(
+                    amount=amount,
+                    description=description,
+                    user_id=user_id,
+                    plan_type=plan_type
+                )
+            else:
+                logger.info(f"Creating TEST payment for user {user_id}, plan: {plan_type}")
+                payment_result = yookassa.create_payment_test(
+                    amount=amount,
+                    description=description,
+                    user_id=user_id,
+                    plan_type=plan_type
+                )
             
             if payment_result["success"]:
                 return {
                     "success": True,
                     "message": payment_result["message"],
-                    "payment_id": payment_result["payment_id"]
+                    "payment_id": payment_result["payment_id"],
+                    "confirmation_url": payment_result.get("confirmation_url", "")
                 }
             else:
-                return {"success": False, "error": "Ошибка создания платежа"}
+                return {"success": False, "error": payment_result.get("error", "Ошибка создания платежа")}
                 
         except Exception as e:
             logger.error(f"Payment error: {e}")
@@ -621,7 +638,7 @@ class VirtualBoyBot:
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
             if subscription:
-                logger.info(f"✅ Subscription activated for user {user_id}")
+                logger.info(f"✅ Subscription activated for user {user_id}, payment: {payment_id}")
                 return True
             return False
             
@@ -773,26 +790,34 @@ class VirtualBoyBot:
                 else:
                     bot.send_message(
                         chat_id=chat_id,
-                        text="❌ Ошибка при создании платежа. Попробуйте еще раз.",
+                        text=f"❌ {payment_result.get('error', 'Ошибка при создании платежа')}",
                         parse_mode='Markdown'
                     )
             
             # 10. Помощь с оплатой
             elif data.startswith("help_payment_"):
                 query.answer("❓ Помощь")
-                help_text = """💳 *ПОМОЩЬ С ОПЛАТОЙ*
+                if YOOKASSA_REAL_MODE:
+                    help_text = """💳 *ПОМОЩЬ С ОПЛАТОЙ*
 
 1. Нажмите кнопку "Оплатить"
-2. Вас перенаправит на страницу оплаты
-3. Введите данные карты
+2. Вас перенаправит на защищенную страницу ЮKassa
+3. Введите данные банковской карты
 4. Подтвердите платеж
-5. Вернитесь в бота - подписка активируется автоматически
+5. После успешной оплаты вернитесь в бота
+
+*Оплата защищена сертификатом PCI DSS*
+*Все данные передаются по зашифрованному соединению*"""
+                else:
+                    help_text = """💳 *ТЕСТОВЫЙ РЕЖИМ ОПЛАТЫ*
+
+*ВНИМАНИЕ:* Сейчас включен тестовый режим.
+Для приема реальных платежей необходимо настроить ключи ЮKassa.
 
 *Тестовая карта для проверки:*
 `5555 5555 5555 4477`
-Срок: 01/30, CVV: 123
-
-Если возникли проблемы - @support"""
+Срок: 01/30, CVV: 123"""
+                
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 
         except Exception as e:
@@ -911,7 +936,7 @@ def webhook():
 def yookassa_webhook():
     try:
         event_json = request.get_json()
-        logger.info(f"Yookassa webhook: {event_json}")
+        logger.info(f"Yookassa webhook received: {event_json}")
         
         event_type = event_json.get('event')
         payment_data = event_json.get('object', {})
@@ -921,13 +946,25 @@ def yookassa_webhook():
             user_id = metadata.get('user_id')
             plan_type = metadata.get('plan_type')
             payment_id = payment_data.get('id')
+            amount = payment_data.get('amount', {}).get('value')
             
             if user_id and plan_type:
+                logger.info(f"Payment succeeded: user {user_id}, plan {plan_type}, amount {amount}, payment {payment_id}")
+                
                 success = virtual_boy.activate_subscription(int(user_id), plan_type, payment_id)
                 if success:
                     virtual_boy.send_payment_success(int(user_id), plan_type, int(user_id))
                     logger.info(f"✅ Subscription activated for user {user_id}")
                     logger.info(f"🎉 Status message sent to user {user_id}")
+                else:
+                    logger.error(f"❌ Failed to activate subscription for user {user_id}")
+                
+        elif event_type == 'payment.waiting_for_capture':
+            logger.info(f"Payment waiting for capture: {payment_data.get('id')}")
+        elif event_type == 'payment.canceled':
+            logger.info(f"Payment canceled: {payment_data.get('id')}")
+        else:
+            logger.info(f"Other Yookassa event: {event_type}")
                 
         return jsonify({"status": "success"}), 200
         
@@ -946,7 +983,8 @@ def home():
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
         "version": "2.1",
-        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui"]
+        "yookassa_mode": "REAL" if YOOKASSA_REAL_MODE else "TEST",
+        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration"]
     })
 
 if __name__ == '__main__':
