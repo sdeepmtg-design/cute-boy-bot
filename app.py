@@ -23,7 +23,7 @@ if not BOT_TOKEN:
     bot = None
 else:
     from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-    from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler
+    from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler, CommandHandler
     from telegram.utils.request import Request
     request_obj = Request(con_pool_size=8)
     bot = Bot(token=BOT_TOKEN, request=request_obj)
@@ -877,9 +877,17 @@ virtual_boy = VirtualBoyBot()
 
 # Создаем диспетчер
 if bot:
-    from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler
+    from telegram.ext import Dispatcher, MessageHandler, Filters, CallbackQueryHandler, CommandHandler
     dp = Dispatcher(bot, None, workers=0, use_context=True)
-    dp.add_handler(MessageHandler(Filters.text | Filters.sticker, virtual_boy.process_message))
+    
+    # Добавляем только нужные обработчики команд
+    dp.add_handler(CommandHandler("start", virtual_boy.process_message))
+    dp.add_handler(CommandHandler("profile", virtual_boy.process_message))
+    dp.add_handler(CommandHandler("help", virtual_boy.process_message))
+    
+    # Обработчики обычных сообщений и callback'ов
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, virtual_boy.process_message))
+    dp.add_handler(MessageHandler(Filters.sticker, virtual_boy.process_message))
     dp.add_handler(CallbackQueryHandler(virtual_boy.handle_callback))
 
 @app.route('/webhook', methods=['POST'])
