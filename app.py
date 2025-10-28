@@ -344,8 +344,8 @@ class VirtualBoyBot:
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
         keyboard = [
-            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 299₽", callback_data=f"sub_week_{user_id}")],
-            [InlineKeyboardButton("💫 МЕСЯЦ - 999₽", callback_data=f"sub_month_{user_id}")],
+            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 249₽", callback_data=f"sub_week_{user_id}")],
+            [InlineKeyboardButton("💫 МЕСЯЦ - 699₽", callback_data=f"sub_month_{user_id}")],
             [InlineKeyboardButton("❓ Подробнее о подписках", callback_data=f"sub_info_{user_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -372,7 +372,7 @@ class VirtualBoyBot:
 • Сохранение истории разговоров
 
 ⏰ *Срок действия:* 7 дней
-💰 *Стоимость:* 299 рублей
+💰 *Стоимость:* 249 рублей
 
 💝 *Идеально подходит, если хочешь:* 
 - Познакомиться поближе
@@ -390,7 +390,7 @@ class VirtualBoyBot:
 • Персональный подход
 
 ⏰ *Срок действия:* 30 дней
-💰 *Стоимость:* 999 рублей
+💰 *Стоимость:* 699 рублей
 🎁 *Выгода:* Экономия 30% по сравнению с недельной подпиской
 
 💝 *Идеально подходит, если хочешь:*
@@ -418,10 +418,10 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "299"
+            amount = "249"
         else:
             duration = "30 дней" 
-            amount = "999"
+            amount = "699"
 
         confirm_text = f"""🎊 *ПОДТВЕРЖДЕНИЕ ВЫБОРА*
 
@@ -452,10 +452,10 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "299"
+            amount = "249"
         else:
             duration = "30 дней"
-            amount = "999"
+            amount = "699"
 
         summary_text = f"""🧾 *ИТОГ ВАШЕГО ВЫБОРА*
 
@@ -488,10 +488,10 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "299"
+            amount = "249"
         else:
             duration = "30 дней"
-            amount = "999"
+            amount = "699"
 
         local_time = self.get_local_time()
 
@@ -556,13 +556,17 @@ class VirtualBoyBot:
 
 🆓 *Статус:* Бесплатный доступ  
 📝 *Осталось сообщений:* {remaining}/5
-💫 *Чтобы получить полный доступ, оформи подписку!*"""
+💫 *Чтобы получить полный доступ, оформи подписку!*
+
+💸 *Используй команду* /subscribe *для оформления подписки*"""
             
             else:
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
 ❌ *Статус:* Подписка истекла
-💫 *Чтобы продолжить общение, оформи подписку!*"""
+💫 *Чтобы продолжить общение, оформи подписку!*
+
+💸 *Используй команду* /subscribe *для оформления подписки*"""
 
             keyboard = [[InlineKeyboardButton("💫 Оформить подписку", callback_data="choose_subscription")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -586,10 +590,10 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 299
+                amount = 249
                 description = "Подписка Virtual Boy на неделю"
             else:
-                amount = 999
+                amount = 699
                 description = "Подписка Virtual Boy на месяц"
             
             # Создаем экземпляр ЮKassa
@@ -675,18 +679,31 @@ class VirtualBoyBot:
 
 /start - Начать общение
 /profile - Мой профиль
+/subscribe - Оформить подписку
 /help - Помощь
 
 💫 Просто напиши мне сообщение, и я отвечу!"""
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 return
 
+            # Обработка команды /subscribe
+            if user_message == '/subscribe':
+                self.send_subscription_choices(chat_id, user_id)
+                return
+
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
             if sub_status == "expired":
+                expired_text = """❌ *Подписка истекла!*
+
+Чтобы продолжить общение, оформи новую подписку.
+
+💸 *Используй команду* /subscribe *для оформления подписки*"""
+                
                 bot.send_message(
                     chat_id=chat_id,
-                    text="❌ Подписка истекла! Оформи новую подписку чтобы продолжить общение."
+                    text=expired_text,
+                    parse_mode='Markdown'
                 )
                 return
 
@@ -909,6 +926,7 @@ if bot:
     dp.add_handler(CommandHandler("start", virtual_boy.process_message))
     dp.add_handler(CommandHandler("profile", virtual_boy.process_message))
     dp.add_handler(CommandHandler("help", virtual_boy.process_message))
+    dp.add_handler(CommandHandler("subscribe", virtual_boy.process_message))
     
     # Обработчики обычных сообщений и callback'ов
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, virtual_boy.process_message))
