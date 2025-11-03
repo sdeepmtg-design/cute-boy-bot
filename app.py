@@ -5,6 +5,7 @@ import logging
 import random
 import time
 import threading
+import json
 from datetime import datetime, timedelta
 from payment import YookassaPayment, check_yookassa_config
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
@@ -18,7 +19,7 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
-APP_URL = os.environ.get('APP_URL', 'https://your-app.onrender.com')  # Ваш URL на Render
+APP_URL = os.environ.get('APP_URL', 'https://cute-boy-bot.onrender.com')
 
 # Проверяем конфигурацию ЮKassa
 YOOKASSA_REAL_MODE = check_yookassa_config(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
@@ -368,7 +369,7 @@ class VirtualBoyBot:
 
 💎 *Что включено:*
 • 7 дней неограниченного общения
-• Полный доступ ко всем функциям
+• Полный доступ ко всем функции
 • Приоритетные ответы
 • Сохранение истории разговоров
 
@@ -526,14 +527,15 @@ class VirtualBoyBot:
         first_message = "[с лёгкой улыбкой] Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫"
         bot.send_message(chat_id=chat_id, text=first_message)
 
-    # 9. Профиль пользователя
+    # 9. Профиль пользователя - ИСПРАВЛЕННАЯ ВЕРСИЯ
     def send_user_profile(self, chat_id, user_id):
-        """Отправка профиля пользователя"""
+        """Отправка профиля пользователя - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
         try:
             sub_status, sub_data = self.check_subscription(user_id)
             
             if sub_status == "premium":
-                start_date = sub_data.activated_at.strftime('%d.%m.%Y')
+                # ИСПРАВЛЕНИЕ: используем created_at вместо activated_at
+                start_date = sub_data.created_at.strftime('%d.%m.%Y')
                 end_date = sub_data.expires_at.strftime('%d.%m.%Y')
                 days_left = (sub_data.expires_at - datetime.now()).days
                 russian_plan_name = self.get_russian_plan_name(sub_data.plan_type)
@@ -580,9 +582,10 @@ class VirtualBoyBot:
             
         except Exception as e:
             logger.error(f"Error sending user profile: {e}")
+            error_text = "❌ Произошла ошибка при загрузке профиля. Попробуйте позже."
             bot.send_message(
                 chat_id=chat_id,
-                text="❌ Произошла ошибка при загрузке профиля. Попробуйте позже.",
+                text=error_text,
                 parse_mode='Markdown'
             )
 
@@ -946,14 +949,41 @@ def webhook():
             logger.error(f"Error in webhook: {e}")
             return jsonify({"status": "error", "message": str(e)}), 400
 
-@app.route('/yookassa-webhook', methods=['POST'])
+@app.route('/yookassa-webhook', methods=['GET', 'POST'])
 def yookassa_webhook():
+    """Webhook для уведомлений от ЮKassa с улучшенным логированием"""
     try:
+        logger.info("🔄 Yookassa webhook CALLED")
+        
+        if request.method == 'GET':
+            logger.info("📋 Webhook test - GET request from Yookassa")
+            return jsonify({
+                "status": "webhook_is_working", 
+                "message": "Webhook ЮKassa настроен правильно",
+                "url": "https://cute-boy-bot.onrender.com/yookassa-webhook"
+            }), 200
+        
+        # Логируем все детали запроса
+        logger.info(f"📦 Headers: {dict(request.headers)}")
+        logger.info(f"📦 Method: {request.method}")
+        logger.info(f"📦 Content-Type: {request.content_type}")
+        
+        # Получаем JSON данные
         event_json = request.get_json()
-        logger.info(f"Yookassa webhook received: {event_json}")
+        if not event_json:
+            raw_data = request.get_data(as_text=True)
+            logger.error(f"❌ No JSON data received. Raw data: {raw_data}")
+            return jsonify({"status": "error", "message": "No JSON data"}), 400
+        
+        logger.info(f"🎯 Full webhook data: {json.dumps(event_json, indent=2, ensure_ascii=False)}")
         
         event_type = event_json.get('event')
         payment_data = event_json.get('object', {})
+        
+        logger.info(f"💰 Event type: {event_type}")
+        logger.info(f"💰 Payment ID: {payment_data.get('id')}")
+        logger.info(f"💰 Payment status: {payment_data.get('status')}")
+        logger.info(f"💰 Metadata: {payment_data.get('metadata')}")
         
         if event_type == 'payment.succeeded':
             metadata = payment_data.get('metadata', {})
@@ -962,30 +992,42 @@ def yookassa_webhook():
             payment_id = payment_data.get('id')
             amount = payment_data.get('amount', {}).get('value')
             
-            if user_id and plan_type:
-                logger.info(f"Payment succeeded: user {user_id}, plan {plan_type}, amount {amount}, payment {payment_id}")
+            logger.info(f"✅ PAYMENT SUCCEEDED: user_id={user_id}, plan_type={plan_type}, amount={amount}")
+            
+            if not user_id or not plan_type:
+                logger.error(f"❌ MISSING user_id or plan_type in metadata: {metadata}")
+                return jsonify({"status": "error", "message": "Missing user_id or plan_type"}), 400
+            
+            # Активируем подписку
+            logger.info(f"🔄 Activating subscription for user {user_id}")
+            success = virtual_boy.activate_subscription(int(user_id), plan_type, payment_id)
+            
+            if success:
+                logger.info(f"🎉 SUBSCRIPTION ACTIVATED for user {user_id}")
                 
-                success = virtual_boy.activate_subscription(int(user_id), plan_type, payment_id)
-                if success:
-                    # Отправляем сообщение об успешной оплате
-                    virtual_boy.send_payment_success(int(user_id), plan_type, int(user_id))
-                    logger.info(f"✅ Subscription activated for user {user_id}")
-                    logger.info(f"🎉 Status message sent to user {user_id}")
-                else:
-                    logger.error(f"❌ Failed to activate subscription for user {user_id}")
+                # Пытаемся отправить сообщение
+                try:
+                    chat_id = int(user_id)
+                    virtual_boy.send_payment_success(chat_id, plan_type, user_id)
+                    logger.info(f"📨 Success message sent to user {user_id}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to send message to {user_id}: {e}")
+            else:
+                logger.error(f"❌ FAILED to activate subscription for user {user_id}")
                 
         elif event_type == 'payment.waiting_for_capture':
-            logger.info(f"Payment waiting for capture: {payment_data.get('id')}")
+            logger.info(f"⏳ Payment waiting for capture: {payment_data.get('id')}")
         elif event_type == 'payment.canceled':
-            logger.info(f"Payment canceled: {payment_data.get('id')}")
+            logger.info(f"❌ Payment canceled: {payment_data.get('id')}")
         else:
-            logger.info(f"Other Yookassa event: {event_type}")
+            logger.info(f"ℹ️ Other Yookassa event: {event_type}")
                 
         return jsonify({"status": "success"}), 200
         
     except Exception as e:
-        logger.error(f"Yookassa webhook error: {e}")
-        return jsonify({"status": "error"}), 400
+        logger.error(f"💥 Yookassa webhook ERROR: {str(e)}")
+        logger.error(f"📦 Request data: {request.get_data(as_text=True)}")
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 # Страница успешной оплаты
 @app.route('/payment-success')
