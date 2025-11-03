@@ -1025,7 +1025,7 @@ def payment_success():
             <div class="container">
                 <h1>🎉 Оплата прошла успешно!</h1>
                 <p>Ваша подписка активирована. Вернитесь в бота чтобы начать общение.</p>
-                <a href="https://t.me/virtualboy_bot" class="button">Вернуться в бота</a>
+                <a href="https://t.me/Boyfriendcute_bot" class="button">Вернуться в бота</a>
             </div>
         </body>
     </html>
