@@ -346,7 +346,7 @@ class VirtualBoyBot:
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
         keyboard = [
-            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 2₽", callback_data=f"sub_week_{user_id}")],
+            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 249₽", callback_data=f"sub_week_{user_id}")],
             [InlineKeyboardButton("💫 МЕСЯЦ - 699₽", callback_data=f"sub_month_{user_id}")],
             [InlineKeyboardButton("❓ Подробнее о подписках", callback_data=f"sub_info_{user_id}")]
         ]
@@ -593,7 +593,7 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 2
+                amount = 249
                 description = "Подписка Virtual Boy на неделю"
             else:
                 amount = 699
