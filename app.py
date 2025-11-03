@@ -18,6 +18,7 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
+APP_URL = os.environ.get('APP_URL', 'https://your-app.onrender.com')  # Ваш URL на Render
 
 # Проверяем конфигурацию ЮKassa
 YOOKASSA_REAL_MODE = check_yookassa_config(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
@@ -966,6 +967,7 @@ def yookassa_webhook():
                 
                 success = virtual_boy.activate_subscription(int(user_id), plan_type, payment_id)
                 if success:
+                    # Отправляем сообщение об успешной оплате
                     virtual_boy.send_payment_success(int(user_id), plan_type, int(user_id))
                     logger.info(f"✅ Subscription activated for user {user_id}")
                     logger.info(f"🎉 Status message sent to user {user_id}")
@@ -985,6 +987,50 @@ def yookassa_webhook():
         logger.error(f"Yookassa webhook error: {e}")
         return jsonify({"status": "error"}), 400
 
+# Страница успешной оплаты
+@app.route('/payment-success')
+def payment_success():
+    return """
+    <html>
+        <head>
+            <title>Оплата прошла успешно!</title>
+            <meta charset="utf-8">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 50px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                }
+                .container {
+                    background: rgba(255,255,255,0.1);
+                    padding: 40px;
+                    border-radius: 15px;
+                    backdrop-filter: blur(10px);
+                }
+                .button {
+                    background: #4CAF50;
+                    color: white;
+                    padding: 15px 30px;
+                    text-decoration: none;
+                    border-radius: 25px;
+                    display: inline-block;
+                    margin-top: 20px;
+                    font-size: 18px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🎉 Оплата прошла успешно!</h1>
+                <p>Ваша подписка активирована. Вернитесь в бота чтобы начать общение.</p>
+                <a href="https://t.me/virtualboy_bot" class="button">Вернуться в бота</a>
+            </div>
+        </body>
+    </html>
+    """
+
 @app.route('/')
 def home():
     global first_request
@@ -997,6 +1043,7 @@ def home():
         "bot": "Virtual Boy 🤗",
         "version": "2.1",
         "yookassa_mode": "REAL" if YOOKASSA_REAL_MODE else "TEST",
+        "webhook_url": f"{APP_URL}/yookassa-webhook",
         "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration"]
     })
 

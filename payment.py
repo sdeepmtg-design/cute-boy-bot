@@ -29,6 +29,9 @@ class YookassaPayment:
     def create_payment_link(self, amount, description, user_id, plan_type):
         """Создание платежа в ЮKassa и получение ссылки на оплату"""
         try:
+            # Получаем URL приложения из переменных окружения
+            app_url = os.environ.get('APP_URL', 'https://your-app.onrender.com')
+            
             # Подготавливаем данные для платежа
             payment_data = {
                 "amount": {
@@ -40,7 +43,7 @@ class YookassaPayment:
                 },
                 "confirmation": {
                     "type": "redirect",
-                    "return_url": "https://t.me/virtualboy_bot"  # URL для возврата после оплаты
+                    "return_url": f"{app_url}/payment-success"  # Правильный URL для возврата
                 },
                 "capture": True,
                 "description": description,
@@ -48,24 +51,6 @@ class YookassaPayment:
                     "user_id": str(user_id),
                     "plan_type": plan_type,
                     "bot_name": "Virtual Boy"
-                },
-                "receipt": {
-                    "customer": {
-                        "email": f"user{user_id}@virtualboy.com"
-                    },
-                    "items": [
-                        {
-                            "description": description,
-                            "quantity": "1",
-                            "amount": {
-                                "value": f"{amount:.2f}",
-                                "currency": "RUB"
-                            },
-                            "vat_code": "1",  # НДС 20%
-                            "payment_mode": "full_payment",
-                            "payment_subject": "service"
-                        }
-                    ]
                 }
             }
             
@@ -74,6 +59,7 @@ class YookassaPayment:
             self.headers['Idempotence-Key'] = idempotence_key
             
             logger.info(f"Creating payment for user {user_id}, amount: {amount} RUB")
+            logger.info(f"Return URL: {payment_data['confirmation']['return_url']}")
             
             # Отправляем запрос к API ЮKassa
             response = requests.post(
@@ -98,7 +84,7 @@ class YookassaPayment:
 • Сумма: {amount} рублей
 • Описание: {description}
 
-Для завершения оплаты перейдите по ссылке ниже и введите данные вашей карты:
+Для завершения оплаты перейдите по ссылке ниже:
 
 [🔗 Перейти к оплате]({confirmation_url})
 
