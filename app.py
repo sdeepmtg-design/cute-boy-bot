@@ -593,7 +593,7 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 249
+                amount = 24949
                 description = "Подписка Virtual Boy на неделю"
             else:
                 amount = 699
