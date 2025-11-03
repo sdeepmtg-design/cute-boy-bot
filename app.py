@@ -344,7 +344,7 @@ class VirtualBoyBot:
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
         keyboard = [
-            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 249₽", callback_data=f"sub_week_{user_id}")],
+            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 2₽", callback_data=f"sub_week_{user_id}")],
             [InlineKeyboardButton("💫 МЕСЯЦ - 699₽", callback_data=f"sub_month_{user_id}")],
             [InlineKeyboardButton("❓ Подробнее о подписках", callback_data=f"sub_info_{user_id}")]
         ]
@@ -372,7 +372,7 @@ class VirtualBoyBot:
 • Сохранение истории разговоров
 
 ⏰ *Срок действия:* 7 дней
-💰 *Стоимость:* 249 рублей
+💰 *Стоимость:* 2 рубля
 
 💝 *Идеально подходит, если хочешь:* 
 - Познакомиться поближе
@@ -391,7 +391,6 @@ class VirtualBoyBot:
 
 ⏰ *Срок действия:* 30 дней
 💰 *Стоимость:* 699 рублей
-🎁 *Выгода:* Экономия 30% по сравнению с недельной подпиской
 
 💝 *Идеально подходит, если хочешь:*
 - Построить глубокие отношения
@@ -418,7 +417,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "249"
+            amount = "2"
         else:
             duration = "30 дней" 
             amount = "699"
@@ -452,7 +451,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "249"
+            amount = "2"
         else:
             duration = "30 дней"
             amount = "699"
@@ -488,7 +487,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "249"
+            amount = "2"
         else:
             duration = "30 дней"
             amount = "699"
@@ -590,7 +589,7 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 249
+                amount = 2
                 description = "Подписка Virtual Boy на неделю"
             else:
                 amount = 699
@@ -829,11 +828,7 @@ class VirtualBoyBot:
                     help_text = """💳 *ТЕСТОВЫЙ РЕЖИМ ОПЛАТЫ*
 
 *ВНИМАНИЕ:* Сейчас включен тестовый режим.
-Для приема реальных платежей необходимо настроить ключи ЮKassa.
-
-*Тестовая карта для проверки:*
-`5555 5555 5555 4477`
-Срок: 01/30, CVV: 123"""
+Для приема реальных платежей необходимо настроить ключи ЮKassa."""
                 
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 
