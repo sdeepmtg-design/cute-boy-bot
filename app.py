@@ -374,7 +374,7 @@ class VirtualBoyBot:
 • Сохранение истории разговоров
 
 ⏰ *Срок действия:* 7 дней
-💰 *Стоимость:* 2 рубля
+💰 *Стоимость:* 249 рублей
 
 💝 *Идеально подходит, если хочешь:* 
 - Познакомиться поближе
@@ -419,7 +419,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "2"
+            amount = "249"
         else:
             duration = "30 дней" 
             amount = "699"
@@ -453,7 +453,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "2"
+            amount = "249"
         else:
             duration = "30 дней"
             amount = "699"
@@ -489,7 +489,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "2"
+            amount = "249"
         else:
             duration = "30 дней"
             amount = "699"
@@ -593,7 +593,7 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 24949
+                amount = 249  # ИЗМЕНЕНО: было 2, стало 249
                 description = "Подписка Virtual Boy на неделю"
             else:
                 amount = 699
