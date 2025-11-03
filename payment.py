@@ -2,6 +2,7 @@ import requests
 import base64
 import json
 import logging
+import os
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
