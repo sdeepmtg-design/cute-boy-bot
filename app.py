@@ -49,6 +49,21 @@ STICKERS = {
 # Флаг для отслеживания первого запуска
 first_request = True
 
+def cleanup_expired_subscriptions():
+    """Автоматическая очистка истекших подписок каждые 6 часов"""
+    while True:
+        try:
+            time.sleep(6 * 60 * 60)  # 6 часов
+            db_manager.cleanup_expired_subscriptions()
+            logger.info("✅ Expired subscriptions cleanup completed")
+        except Exception as e:
+            logger.error(f"Error in cleanup thread: {e}")
+
+# Запускаем очистку в отдельном потоке
+cleanup_thread = threading.Thread(target=cleanup_expired_subscriptions, daemon=True)
+cleanup_thread.start()
+logger.info("✅ Auto cleanup system started")
+
 class VirtualBoyBot:
     def __init__(self):
         self.personality = """
@@ -133,11 +148,14 @@ class VirtualBoyBot:
             # Получаем всех пользователей с активной подпиской из базы данных
             session = SessionLocal()
             active_subscriptions = session.query(UserSubscription).filter(
-                UserSubscription.expires_at > datetime.now()
+                UserSubscription.expires_at > datetime.utcnow(),
+                UserSubscription.is_active == True
             ).all()
             session.close()
             
-            return [sub.user_id for sub in active_subscriptions]
+            active_users = [sub.user_id for sub in active_subscriptions]
+            logger.info(f"📊 Active subscribers: {len(active_users)} users")
+            return active_users
         except Exception as e:
             logger.error(f"Error getting active users: {e}")
             return []
@@ -231,18 +249,27 @@ class VirtualBoyBot:
             return (random.random() < send_probability, random.choice(emotions))
 
     def check_subscription(self, user_id):
-        """Проверка подписки из БАЗЫ ДАННЫХ"""
+        """Проверка подписки из БАЗЫ ДАННЫХ с улучшенной логикой"""
         try:
             sub_data = db_manager.get_subscription(user_id)
             
-            if sub_data and sub_data.expires_at > datetime.now():
-                return "premium", sub_data
+            if sub_data:
+                # Проверяем что подписка активна и не истекла
+                if sub_data.is_active and sub_data.expires_at > datetime.utcnow():
+                    logger.info(f"✅ Active subscription found for user {user_id}, expires: {sub_data.expires_at}")
+                    return "premium", sub_data
+                else:
+                    logger.info(f"❌ Subscription expired for user {user_id}, expires: {sub_data.expires_at}")
             
+            # Проверяем бесплатные сообщения
             free_messages = db_manager.get_message_count(user_id)
             if free_messages < 5:
+                logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5")
                 return "free", 5 - free_messages
             
+            logger.info(f"💔 No subscription and no free messages for user {user_id}")
             return "expired", None
+            
         except Exception as e:
             logger.error(f"Error checking subscription: {e}")
             return "expired", None
@@ -259,7 +286,7 @@ class VirtualBoyBot:
     def get_local_time(self):
         """Получение локального времени (Москва)"""
         # Добавляем 3 часа для московского времени
-        moscow_time = datetime.now() + timedelta(hours=3)
+        moscow_time = datetime.utcnow() + timedelta(hours=3)
         return moscow_time.strftime('%d.%m.%Y %H:%M')
 
     # 1. Первое сообщение при запуске бота
@@ -537,7 +564,7 @@ class VirtualBoyBot:
                 # ИСПРАВЛЕНИЕ: используем created_at вместо activated_at
                 start_date = sub_data.created_at.strftime('%d.%m.%Y')
                 end_date = sub_data.expires_at.strftime('%d.%m.%Y')
-                days_left = (sub_data.expires_at - datetime.now()).days
+                days_left = (sub_data.expires_at - datetime.utcnow()).days
                 russian_plan_name = self.get_russian_plan_name(sub_data.plan_type)
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
@@ -635,22 +662,35 @@ class VirtualBoyBot:
             return {"success": False, "error": str(e)}
 
     def activate_subscription(self, user_id, plan_type, payment_id=None):
-        """Активация подписки"""
+        """Активация подписки с улучшенной логикой"""
         try:
+            logger.info(f"🔄 STARTING subscription activation: user={user_id}, plan={plan_type}")
+            
             if plan_type == "week":
                 days = 7
             else:
                 days = 30
             
+            logger.info(f"📅 Setting subscription for {days} days")
+            
+            # Активируем подписку в базе
             subscription = db_manager.update_subscription(user_id, plan_type, days)
             
             if subscription:
-                logger.info(f"✅ Subscription activated for user {user_id}, payment: {payment_id}")
+                logger.info(f"✅ DATABASE: Subscription saved for user {user_id}")
+                logger.info(f"📅 Subscription expires at: {subscription.expires_at}")
+                
+                # Сбрасываем счетчик бесплатных сообщений
+                db_manager.update_message_count(user_id, 0)
+                logger.info(f"🔄 Reset message count for user {user_id}")
+                
                 return True
-            return False
-            
+            else:
+                logger.error(f"❌ DATABASE: Failed to save subscription for {user_id}")
+                return False
+                
         except Exception as e:
-            logger.error(f"Error activating subscription: {e}")
+            logger.error(f"💥 ACTIVATION ERROR for user {user_id}: {e}")
             return False
 
     def process_message(self, update, context):
@@ -1028,6 +1068,26 @@ def yookassa_webhook():
         logger.error(f"💥 Yookassa webhook ERROR: {str(e)}")
         logger.error(f"📦 Request data: {request.get_data(as_text=True)}")
         return jsonify({"status": "error", "message": str(e)}), 400
+
+# Отладочный эндпоинт для проверки подписки
+@app.route('/debug/subscription/<user_id>')
+def debug_subscription(user_id):
+    """Отладочный эндпоинт для проверки подписки"""
+    try:
+        sub = db_manager.get_subscription(int(user_id))
+        if sub:
+            return jsonify({
+                "user_id": sub.user_id,
+                "plan_type": sub.plan_type,
+                "created_at": sub.created_at.isoformat(),
+                "expires_at": sub.expires_at.isoformat(),
+                "is_active": sub.is_active,
+                "now_utc": datetime.utcnow().isoformat(),
+                "is_valid": sub.expires_at > datetime.utcnow()
+            })
+        return jsonify({"error": "No subscription found"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 # Страница успешной оплаты
 @app.route('/payment-success')

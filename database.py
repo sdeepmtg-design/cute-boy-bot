@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
@@ -10,33 +10,28 @@ logger = logging.getLogger(__name__)
 # Подключение к базе данных
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///bot.db')
 
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 engine = create_engine(DATABASE_URL)
-Base = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
 class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, unique=True, index=True)
-    plan_type = Column(String)  # 'week', 'month', 'unlimited'
+    plan_type = Column(String)  # 'week' or 'month'
+    created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)  # Исправлено на created_at
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class UserMessageCount(Base):
-    __tablename__ = "user_message_counts"
+    is_active = Column(Boolean, default=True)
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, unique=True, index=True)
-    message_count = Column(Integer, default=0)
-    last_reset = Column(DateTime, default=datetime.utcnow)
+    def __repr__(self):
+        return f"<UserSubscription(user_id={self.user_id}, plan={self.plan_type}, expires={self.expires_at})>"
 
-class ConversationHistory(Base):
-    __tablename__ = "conversation_history"
+class Conversation(Base):
+    __tablename__ = "conversations"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
@@ -44,181 +39,147 @@ class ConversationHistory(Base):
     content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
-class UsedStickers(Base):
-    __tablename__ = "used_stickers"
+class UserMessageCount(Base):
+    __tablename__ = "user_message_counts"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
-    sticker_id = Column(String)
-    used_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, unique=True, index=True)
+    message_count = Column(Integer, default=0)
+    last_updated = Column(DateTime, default=datetime.utcnow)
 
 # Создаем таблицы
 Base.metadata.create_all(bind=engine)
 
 class DatabaseManager:
     def __init__(self):
-        self.db = SessionLocal()
+        self.session = SessionLocal()
+    
+    def update_subscription(self, user_id, plan_type, days):
+        """Обновление или создание подписки с правильным расчетом времени"""
+        try:
+            # Удаляем старую подписку если есть
+            old_sub = self.session.query(UserSubscription).filter(UserSubscription.user_id == user_id).first()
+            if old_sub:
+                self.session.delete(old_sub)
+            
+            # Создаем новую подписку
+            created_at = datetime.utcnow()
+            expires_at = created_at + timedelta(days=days)
+            
+            subscription = UserSubscription(
+                user_id=user_id,
+                plan_type=plan_type,
+                created_at=created_at,
+                expires_at=expires_at,
+                is_active=True
+            )
+            
+            self.session.add(subscription)
+            self.session.commit()
+            
+            logger.info(f"✅ Subscription updated: user={user_id}, plan={plan_type}, expires={expires_at}")
+            return subscription
+            
+        except Exception as e:
+            logger.error(f"❌ Error updating subscription: {e}")
+            self.session.rollback()
+            return None
     
     def get_subscription(self, user_id):
+        """Получение активной подписки пользователя"""
         try:
-            return self.db.query(UserSubscription).filter(UserSubscription.user_id == user_id).first()
+            subscription = self.session.query(UserSubscription).filter(
+                UserSubscription.user_id == user_id,
+                UserSubscription.is_active == True
+            ).first()
+            
+            if subscription and subscription.expires_at > datetime.utcnow():
+                return subscription
+            return None
+            
         except Exception as e:
             logger.error(f"Error getting subscription: {e}")
             return None
     
-    def update_subscription(self, user_id, plan_type, days):
-        try:
-            subscription = self.get_subscription(user_id)
-            expires_at = datetime.utcnow() + timedelta(days=days)
-            
-            if subscription:
-                subscription.plan_type = plan_type
-                subscription.expires_at = expires_at
-                subscription.updated_at = datetime.utcnow()
-            else:
-                subscription = UserSubscription(
-                    user_id=user_id,
-                    plan_type=plan_type,
-                    expires_at=expires_at,
-                    created_at=datetime.utcnow()
-                )
-                self.db.add(subscription)
-            
-            self.db.commit()
-            self.db.refresh(subscription)
-            return subscription
-        except Exception as e:
-            logger.error(f"Error updating subscription: {e}")
-            self.db.rollback()
-            return None
-    
-    def get_message_count(self, user_id):
-        try:
-            user_count = self.db.query(UserMessageCount).filter(UserMessageCount.user_id == user_id).first()
-            if user_count:
-                # Проверяем, не пора ли сбросить счетчик (например, раз в месяц)
-                if (datetime.utcnow() - user_count.last_reset).days >= 30:
-                    user_count.message_count = 0
-                    user_count.last_reset = datetime.utcnow()
-                    self.db.commit()
-                return user_count.message_count
-            else:
-                # Создаем новую запись
-                user_count = UserMessageCount(user_id=user_id, message_count=0)
-                self.db.add(user_count)
-                self.db.commit()
-                return 0
-        except Exception as e:
-            logger.error(f"Error getting message count: {e}")
-            return 0
-    
-    def update_message_count(self, user_id, count):
-        try:
-            user_count = self.db.query(UserMessageCount).filter(UserMessageCount.user_id == user_id).first()
-            if user_count:
-                user_count.message_count = count
-            else:
-                user_count = UserMessageCount(user_id=user_id, message_count=count)
-                self.db.add(user_count)
-            
-            self.db.commit()
-            return True
-        except Exception as e:
-            logger.error(f"Error updating message count: {e}")
-            self.db.rollback()
-            return False
-    
     def save_conversation(self, user_id, role, content):
+        """Сохранение сообщения в историю"""
         try:
-            # Ограничиваем историю до 20 сообщений на пользователя
-            history_count = self.db.query(ConversationHistory).filter(ConversationHistory.user_id == user_id).count()
-            if history_count >= 20:
-                # Удаляем самые старые сообщения
-                oldest_messages = self.db.query(ConversationHistory).filter(
-                    ConversationHistory.user_id == user_id
-                ).order_by(ConversationHistory.timestamp.asc()).limit(history_count - 19).all()
-                
-                for msg in oldest_messages:
-                    self.db.delete(msg)
-            
-            conversation = ConversationHistory(
+            conversation = Conversation(
                 user_id=user_id,
                 role=role,
                 content=content
             )
-            self.db.add(conversation)
-            self.db.commit()
-            return True
+            self.session.add(conversation)
+            self.session.commit()
         except Exception as e:
             logger.error(f"Error saving conversation: {e}")
-            self.db.rollback()
-            return False
+            self.session.rollback()
     
-    def get_conversation_history(self, user_id, limit=20):
+    def get_conversation_history(self, user_id, limit=10):
+        """Получение истории разговора"""
         try:
-            messages = self.db.query(ConversationHistory).filter(
-                ConversationHistory.user_id == user_id
-            ).order_by(ConversationHistory.timestamp.asc()).limit(limit).all()
+            conversations = self.session.query(Conversation).filter(
+                Conversation.user_id == user_id
+            ).order_by(Conversation.timestamp.desc()).limit(limit).all()
             
             return [
-                {"role": msg.role, "content": msg.content, "timestamp": msg.timestamp}
-                for msg in messages
+                {"role": conv.role, "content": conv.content}
+                for conv in reversed(conversations)
             ]
         except Exception as e:
             logger.error(f"Error getting conversation history: {e}")
             return []
     
-    def clear_conversation_history(self, user_id):
+    def get_message_count(self, user_id):
+        """Получение количества отправленных сообщений"""
         try:
-            self.db.query(ConversationHistory).filter(ConversationHistory.user_id == user_id).delete()
-            self.db.commit()
-            return True
-        except Exception as e:
-            logger.error(f"Error clearing conversation history: {e}")
-            self.db.rollback()
-            return False
-    
-    def add_used_sticker(self, user_id, sticker_id):
-        try:
-            # Очищаем старые записи (больше 100 на пользователя)
-            sticker_count = self.db.query(UsedStickers).filter(UsedStickers.user_id == user_id).count()
-            if sticker_count >= 100:
-                oldest_stickers = self.db.query(UsedStickers).filter(
-                    UsedStickers.user_id == user_id
-                ).order_by(UsedStickers.used_at.asc()).limit(sticker_count - 99).all()
-                
-                for sticker in oldest_stickers:
-                    self.db.delete(sticker)
+            user_count = self.session.query(UserMessageCount).filter(
+                UserMessageCount.user_id == user_id
+            ).first()
             
-            used_sticker = UsedStickers(
-                user_id=user_id,
-                sticker_id=sticker_id
-            )
-            self.db.add(used_sticker)
-            self.db.commit()
-            return True
+            return user_count.message_count if user_count else 0
+            
         except Exception as e:
-            logger.error(f"Error adding used sticker: {e}")
-            self.db.rollback()
-            return False
+            logger.error(f"Error getting message count: {e}")
+            return 0
     
-    def get_used_stickers(self, user_id):
+    def update_message_count(self, user_id, count):
+        """Обновление счетчика сообщений"""
         try:
-            stickers = self.db.query(UsedStickers).filter(UsedStickers.user_id == user_id).all()
-            return {sticker.sticker_id for sticker in stickers}
+            user_count = self.session.query(UserMessageCount).filter(
+                UserMessageCount.user_id == user_id
+            ).first()
+            
+            if user_count:
+                user_count.message_count = count
+                user_count.last_updated = datetime.utcnow()
+            else:
+                user_count = UserMessageCount(
+                    user_id=user_id,
+                    message_count=count
+                )
+                self.session.add(user_count)
+            
+            self.session.commit()
+            
         except Exception as e:
-            logger.error(f"Error getting used stickers: {e}")
-            return set()
+            logger.error(f"Error updating message count: {e}")
+            self.session.rollback()
     
-    def clear_used_stickers(self, user_id):
+    def cleanup_expired_subscriptions(self):
+        """Очистка истекших подписок"""
         try:
-            self.db.query(UsedStickers).filter(UsedStickers.user_id == user_id).delete()
-            self.db.commit()
-            return True
+            expired_count = self.session.query(UserSubscription).filter(
+                UserSubscription.expires_at <= datetime.utcnow(),
+                UserSubscription.is_active == True
+            ).update({"is_active": False})
+            
+            self.session.commit()
+            logger.info(f"🧹 Cleaned up {expired_count} expired subscriptions")
+            
         except Exception as e:
-            logger.error(f"Error clearing used stickers: {e}")
-            self.db.rollback()
-            return False
+            logger.error(f"Error cleaning expired subscriptions: {e}")
+            self.session.rollback()
 
-# Глобальный экземпляр менеджера БД
+# Глобальный экземпляр менеджера базы данных
 db_manager = DatabaseManager()
