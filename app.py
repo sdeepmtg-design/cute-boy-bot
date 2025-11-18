@@ -373,7 +373,7 @@ class VirtualBoyBot:
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
         keyboard = [
-            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 249₽", callback_data=f"sub_week_{user_id}")],
+            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 2₽", callback_data=f"sub_week_{user_id}")],
             [InlineKeyboardButton("💫 МЕСЯЦ - 699₽", callback_data=f"sub_month_{user_id}")],
             [InlineKeyboardButton("❓ Подробнее о подписках", callback_data=f"sub_info_{user_id}")]
         ]
@@ -401,7 +401,7 @@ class VirtualBoyBot:
 • Сохранение истории разговоров
 
 ⏰ *Срок действия:* 7 дней
-💰 *Стоимость:* 249 рублей
+💰 *Стоимость:* 2 рубля
 
 💝 *Идеально подходит, если хочешь:* 
 - Познакомиться поближе
@@ -446,7 +446,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "249"
+            amount = "2"
         else:
             duration = "30 дней" 
             amount = "699"
@@ -480,7 +480,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "249"
+            amount = "2"
         else:
             duration = "30 дней"
             amount = "699"
@@ -516,7 +516,7 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "249"
+            amount = "2"
         else:
             duration = "30 дней"
             amount = "699"
@@ -620,7 +620,7 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 249  # ИЗМЕНЕНО: было 2, стало 249
+                amount = 2  # ВОЗВРАТ: 2 рубля вместо 249
                 description = "Подписка Virtual Boy на неделю"
             else:
                 amount = 699
@@ -679,6 +679,7 @@ class VirtualBoyBot:
             if subscription:
                 logger.info(f"✅ DATABASE: Subscription saved for user {user_id}")
                 logger.info(f"📅 Subscription expires at: {subscription.expires_at}")
+                logger.info(f"⏰ Current UTC time: {datetime.utcnow()}")
                 
                 # Сбрасываем счетчик бесплатных сообщений
                 db_manager.update_message_count(user_id, 0)
@@ -1083,7 +1084,8 @@ def debug_subscription(user_id):
                 "expires_at": sub.expires_at.isoformat(),
                 "is_active": sub.is_active,
                 "now_utc": datetime.utcnow().isoformat(),
-                "is_valid": sub.expires_at > datetime.utcnow()
+                "is_valid": sub.expires_at > datetime.utcnow(),
+                "days_remaining": (sub.expires_at - datetime.utcnow()).days
             })
         return jsonify({"error": "No subscription found"})
     except Exception as e:
