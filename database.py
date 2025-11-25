@@ -8,14 +8,35 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Подключение к базе данных
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///bot.db')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
+if not DATABASE_URL:
+    logger.error("❌ DATABASE_URL environment variable is not set!")
+    logger.warning("⚠️ Using SQLite - data will be lost on restart!")
+    DATABASE_URL = 'sqlite:///temp_bot.db'
+
+# Исправляем URL для SQLAlchemy
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+logger.info(f"🔗 Database URL: {DATABASE_URL}")
+
+try:
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+    
+    # Тестируем подключение
+    connection = engine.connect()
+    connection.close()
+    logger.info("✅ Database connection successful")
+    
+except Exception as e:
+    logger.error(f"❌ Database connection failed: {e}")
+    # Fallback на SQLite
+    engine = create_engine('sqlite:///fallback.db')
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
 
 class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
@@ -48,7 +69,11 @@ class UserMessageCount(Base):
     last_updated = Column(DateTime, default=datetime.utcnow)
 
 # Создаем таблицы
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ Database tables created successfully")
+except Exception as e:
+    logger.error(f"❌ Error creating tables: {e}")
 
 class DatabaseManager:
     def __init__(self):
@@ -61,6 +86,7 @@ class DatabaseManager:
             old_sub = self.session.query(UserSubscription).filter(UserSubscription.user_id == user_id).first()
             if old_sub:
                 self.session.delete(old_sub)
+                self.session.commit()
             
             # Создаем новую подписку
             created_at = datetime.utcnow()
@@ -77,7 +103,7 @@ class DatabaseManager:
             self.session.add(subscription)
             self.session.commit()
             
-            logger.info(f"✅ Subscription updated: user={user_id}, plan={plan_type}, expires={expires_at}")
+            logger.info(f"✅ Subscription CREATED: user={user_id}, plan={plan_type}, expires={expires_at}")
             return subscription
             
         except Exception as e:
@@ -89,12 +115,20 @@ class DatabaseManager:
         """Получение активной подписки пользователя"""
         try:
             subscription = self.session.query(UserSubscription).filter(
-                UserSubscription.user_id == user_id,
-                UserSubscription.is_active == True
+                UserSubscription.user_id == user_id
             ).first()
             
-            if subscription and subscription.expires_at > datetime.utcnow():
-                return subscription
+            if subscription:
+                is_active = subscription.is_active
+                is_valid = subscription.expires_at > datetime.utcnow()
+                
+                logger.info(f"📊 Subscription check: user={user_id}, active={is_active}, valid={is_valid}, expires={subscription.expires_at}")
+                
+                if is_active and is_valid:
+                    return subscription
+                else:
+                    logger.warning(f"⚠️ Subscription expired or inactive: user={user_id}")
+            
             return None
             
         except Exception as e:
@@ -180,6 +214,25 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error cleaning expired subscriptions: {e}")
             self.session.rollback()
+    
+    def debug_all_subscriptions(self):
+        """Отладочная функция: показать все подписки"""
+        try:
+            subscriptions = self.session.query(UserSubscription).all()
+            result = []
+            for sub in subscriptions:
+                result.append({
+                    "user_id": sub.user_id,
+                    "plan_type": sub.plan_type,
+                    "created_at": sub.created_at.isoformat(),
+                    "expires_at": sub.expires_at.isoformat(),
+                    "is_active": sub.is_active,
+                    "is_valid": sub.expires_at > datetime.utcnow()
+                })
+            return result
+        except Exception as e:
+            logger.error(f"Error getting all subscriptions: {e}")
+            return []
 
 # Глобальный экземпляр менеджера базы данных
 db_manager = DatabaseManager()
