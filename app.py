@@ -373,8 +373,8 @@ class VirtualBoyBot:
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
         keyboard = [
-            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 2₽", callback_data=f"sub_week_{user_id}")],
-            [InlineKeyboardButton("💫 МЕСЯЦ - 699₽", callback_data=f"sub_month_{user_id}")],
+            [InlineKeyboardButton("🎯 НЕДЕЛЯ - 299₽", callback_data=f"sub_week_{user_id}")],
+            [InlineKeyboardButton("💫 МЕСЯЦ - 999₽", callback_data=f"sub_month_{user_id}")],
             [InlineKeyboardButton("❓ Подробнее о подписках", callback_data=f"sub_info_{user_id}")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -401,7 +401,7 @@ class VirtualBoyBot:
 • Сохранение истории разговоров
 
 ⏰ *Срок действия:* 7 дней
-💰 *Стоимость:* 2 рубля
+💰 *Стоимость:* 299 рублей
 
 💝 *Идеально подходит, если хочешь:* 
 - Познакомиться поближе
@@ -419,7 +419,7 @@ class VirtualBoyBot:
 • Персональный подход
 
 ⏰ *Срок действия:* 30 дней
-💰 *Стоимость:* 699 рублей
+💰 *Стоимость:* 999 рублей
 
 💝 *Идеально подходит, если хочешь:*
 - Построить глубокие отношения
@@ -446,10 +446,10 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "2"
+            amount = "299"
         else:
             duration = "30 дней" 
-            amount = "699"
+            amount = "999"
 
         confirm_text = f"""🎊 *ПОДТВЕРЖДЕНИЕ ВЫБОРА*
 
@@ -480,10 +480,10 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "2"
+            amount = "299"
         else:
             duration = "30 дней"
-            amount = "699"
+            amount = "999"
 
         summary_text = f"""🧾 *ИТОГ ВАШЕГО ВЫБОРА*
 
@@ -516,10 +516,10 @@ class VirtualBoyBot:
         
         if plan_type == "week":
             duration = "7 дней"
-            amount = "2"
+            amount = "299"
         else:
             duration = "30 дней"
-            amount = "699"
+            amount = "999"
 
         local_time = self.get_local_time()
 
@@ -620,10 +620,10 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 2  # ВОЗВРАТ: 2 рубля вместо 249
+                amount = 299
                 description = "Подписка Virtual Boy на неделю"
             else:
-                amount = 699
+                amount = 999
                 description = "Подписка Virtual Boy на месяц"
             
             # Создаем экземпляр ЮKassa
