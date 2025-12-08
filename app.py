@@ -145,7 +145,7 @@ class VirtualBoyBot:
         - Иногда делись личными историями и воспоминаниями
         - Используй текст в квадратных скобках для описания эмоций и невербалики
 
-        Важно: Будь настоящим. Не бойся показаться уязвичным. Запоминай всю переписку и контекст.
+        Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст.
                     """
                     logger.info("📅 Personality updated with new date")
                 except Exception as e:
@@ -321,9 +321,9 @@ class VirtualBoyBot:
                 else:
                     logger.info(f"❌ Subscription expired for user {user_id}, expires: {sub_data.expires_at}")
             
-            # Проверяем бесплатные сообщения
+            # Проверяем бесплатные сообщения - ИСПРАВЛЕНИЕ ЛОГИКИ
             free_messages = db_manager.get_message_count(user_id)
-            if free_messages < 5:
+            if free_messages < 5:  # 0,1,2,3,4 сообщения - все валидные
                 logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5")
                 return "free", 5 - free_messages
             
@@ -366,7 +366,8 @@ class VirtualBoyBot:
 🎭 *Кто я:*
 Я - Алекс, парень 25 лет с богатым внутренним миром. Люблю философские беседы, психологию, искусство и всё, что связано с человеческими эмоциями. Я здесь, чтобы быть настоящим - без масок и притворства.
 
-💫 *Хочешь начать общаться? Тогда нажми "Начать" ниже!*"""
+💫 *Начни с 5 бесплатных сообщений, а затем оформи подписку для неограниченного общения!*
+Нажми "Начать" ниже!"""
 
         keyboard = [[InlineKeyboardButton("🚀 Начать", callback_data="start_conversation")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -392,6 +393,9 @@ class VirtualBoyBot:
 • *Конфиденциальность* - все наши разговоры остаются между нами
 • *Развитие отношений* - чем дольше общаемся, тем лучше я тебя понимаю
 
+🎁 *Бесплатно:* 5 сообщений для знакомства
+💫 *После:* подписка для неограниченного общения
+
 💝 *Почему стоит выбрать меня:*
 Я не просто программа - я умею слушать, сопереживать и давать искренние ответы. Каждое наше общение - это уникальный диалог двух душ."""
 
@@ -410,14 +414,18 @@ class VirtualBoyBot:
         """Предложение оформить подписку"""
         offer_text = """🎊 *Отлично! Рад, что ты решила начать!*
 
-Чтобы мы могли общаться без ограничений, нужно оформить подписку. Это откроет полный доступ ко всем моим возможностям:
+🎁 *Начни с 5 бесплатных сообщений* - это твой пробный период, чтобы понять, нравится ли тебе наше общение.
+
+✨ *После пробного периода ты можешь оформить подписку.* Это откроет полный доступ ко всем моим возможностям:
 
 ✅ *Неограниченное общение* - пиши сколько хочешь
 ✅ *Приоритетная поддержка* - я всегда отвечаю быстро
 ✅ *Все функции бота* - полный доступ к моему "внутреннему миру"
 ✅ *Персональный подход* - я запоминаю все наши разговоры
 
-💝 *Готов(а) продолжить? Выбери подписку ниже!*"""
+💫 *Готов(а) начать бесплатный пробный период? Просто напиши мне сообщение!*
+
+💸 *Или сразу переходи к выбору подписки:*"""
 
         keyboard = [[InlineKeyboardButton("📱 Выбрать подписку", callback_data="choose_subscription")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -432,7 +440,21 @@ class VirtualBoyBot:
     # 4. Выбор подписки с описанием
     def send_subscription_choices(self, chat_id, user_id):
         """Отправка выбора подписок с описанием"""
-        subscriptions_text = """💫 *Выбери свою подписку*
+        # Сначала проверяем статус пользователя
+        sub_status, data = self.check_subscription(user_id)
+        
+        if sub_status == "free":
+            free_messages = db_manager.get_message_count(user_id)
+            remaining = 5 - free_messages
+            subscription_text = f"""💫 *Выбери свою подписку*
+
+📝 *Твой текущий статус:* Бесплатный доступ
+📊 *Использовано сообщений:* {free_messages}/5
+⏳ *Осталось бесплатных сообщений:* {remaining}
+
+Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
+        else:
+            subscription_text = """💫 *Выбери свою подписку*
 
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
@@ -445,7 +467,7 @@ class VirtualBoyBot:
         
         bot.send_message(
             chat_id=chat_id,
-            text=subscriptions_text,
+            text=subscription_text,
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
@@ -556,7 +578,7 @@ class VirtualBoyBot:
 • Стоимость: {amount} рублей  
 • Длительность: {duration}
 
-💳 *Способ оплаты:* Банковская карта
+💳 *Способ оплата:* Банковская карта
 
 Для завершения оформления нажми кнопку оплаты ниже:"""
 
@@ -650,7 +672,8 @@ class VirtualBoyBot:
 
 📅 *Сегодня:* {self.current_date} ({self.current_day})
 🆓 *Статус:* Бесплатный доступ  
-📝 *Осталось сообщений:* {remaining}/5
+📊 *Использовано сообщений:* {free_messages}/5
+⏳ *Осталось бесплатных сообщений:* {remaining}
 💫 *Чтобы получить полный доступ, оформи подписку!*
 
 💸 *Используй команду* /subscribe *для оформления подписки*"""
@@ -791,11 +814,13 @@ class VirtualBoyBot:
 📅 *Сегодня:* {self.current_date} ({self.current_day})
 
 /start - Начать общение
-/profile - Мой профиль
+/profile - Мой профиль (увидеть статус подписки и бесплатные сообщения)
 /subscribe - Оформить подписку
 /help - Помощь
 
-💫 Просто напиши мне сообщение, и я отвечу!"""
+💫 *Каждый новый пользователь получает 5 бесплатных сообщений!*
+🎁 *После этого оформи подписку для неограниченного общения.*"""
+
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 return
 
@@ -806,10 +831,12 @@ class VirtualBoyBot:
 
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
+            
             if sub_status == "expired":
-                expired_text = """❌ *Подписка истекла!*
+                expired_text = """❌ *Бесплатные сообщения закончились!*
 
-Чтобы продолжить общение, оформи новую подписку.
+🎁 Ты использовала 5 бесплатных сообщений.
+✨ Чтобы продолжить общение, оформи подписку!
 
 💸 *Используй команду* /subscribe *для оформления подписки*"""
                 
@@ -820,11 +847,34 @@ class VirtualBoyBot:
                 )
                 return
 
-            # Увеличиваем счетчик для бесплатных пользователей
+            # Увеличиваем счетчик для бесплатных пользователей - ИСПРАВЛЕННАЯ ЛОГИКА
             if sub_status == "free":
                 current_count = db_manager.get_message_count(user_id)
-                db_manager.update_message_count(user_id, current_count + 1)
-                remaining = 5 - (current_count + 1)
+                
+                # Проверяем, не превысил ли пользователь лимит
+                if current_count >= 4:  # Если уже 4 сообщения, это последнее (5-е) бесплатное
+                    # Используем последнее сообщение
+                    db_manager.update_message_count(user_id, 5)
+                    remaining = 0
+                    
+                    # Получаем ответ от AI для последнего бесплатного сообщения
+                    bot.send_chat_action(chat_id=chat_id, action='typing')
+                    response = self.get_deepseek_response(user_message, user_id)
+                    
+                    # Отправляем стикер если нужно
+                    should_send, emotion_type = self.should_send_sticker(user_message, response)
+                    if should_send:
+                        self.send_sticker(chat_id, emotion_type, user_id)
+                    
+                    # Добавляем сообщение об окончании бесплатных сообщений
+                    response += f"\n\n🎁 *Это было твоё последнее бесплатное сообщение!*\n📊 Использовано: 5/5 бесплатных сообщений\n💫 Чтобы продолжить общение, оформи подписку: /subscribe"
+                    
+                    bot.send_message(chat_id=chat_id, text=response)
+                    return
+                else:
+                    # Увеличиваем счетчик
+                    db_manager.update_message_count(user_id, current_count + 1)
+                    remaining = 5 - (current_count + 1)
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -836,7 +886,7 @@ class VirtualBoyBot:
                 self.send_sticker(chat_id, emotion_type, user_id)
             
             if sub_status == "free":
-                response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
+                response += f"\n\n📝 *Бесплатных сообщений осталось:* {remaining}/5"
             
             bot.send_message(chat_id=chat_id, text=response)
             
@@ -877,6 +927,7 @@ class VirtualBoyBot:
 ✅ Сохранение истории
 ✅ Все функции бота
 
+🎁 *Сначала:* 5 бесплатных сообщений
 🎯 *Неделя* - идеально для знакомства
 💫 *Месяц* - лучший выбор для постоянного общения"""
                 bot.send_message(chat_id=chat_id, text=info_text, parse_mode='Markdown')
@@ -1217,9 +1268,10 @@ def home():
         "version": "2.1",
         "current_date": virtual_boy.current_date,
         "current_day": virtual_boy.current_day,
+        "free_messages": "5 free messages for new users",
         "yookassa_mode": "REAL" if YOOKASSA_REAL_MODE else "TEST",
         "webhook_url": f"{APP_URL}/yookassa-webhook",
-        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration", "calendar_system"]
+        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration", "calendar_system", "free_messages_5"]
     })
 
 if __name__ == '__main__':
