@@ -222,11 +222,22 @@ class VirtualBoyBot:
 
     def add_to_history(self, user_id, role, content):
         """Добавление сообщения в историю в БАЗУ ДАННЫХ"""
-        db_manager.save_conversation(user_id, role, content)
+        try:
+            # Преобразуем user_id в строку для избежания ошибок с большими числами
+            user_id_str = str(user_id)
+            db_manager.save_conversation(user_id_str, role, content)
+        except Exception as e:
+            logger.error(f"Error adding to history for user {user_id}: {e}")
 
     def get_conversation_history(self, user_id):
         """Получение истории разговора ИЗ БАЗЫ ДАННЫХ"""
-        return db_manager.get_conversation_history(user_id)
+        try:
+            # Преобразуем user_id в строку для избежания ошибок с большими числами
+            user_id_str = str(user_id)
+            return db_manager.get_conversation_history(user_id_str)
+        except Exception as e:
+            logger.error(f"Error getting conversation history for user {user_id}: {e}")
+            return []
 
     def get_random_emotion(self):
         """Случайная эмоциональная реакция"""
@@ -311,7 +322,9 @@ class VirtualBoyBot:
     def check_subscription(self, user_id):
         """Проверка подписки из БАЗЫ ДАННЫХ с улучшенной логикой"""
         try:
-            sub_data = db_manager.get_subscription(user_id)
+            # Преобразуем user_id в строку для избежания ошибок с большими числами
+            user_id_str = str(user_id)
+            sub_data = db_manager.get_subscription(user_id_str)
             
             if sub_data:
                 # Проверяем что подписка активна и не истекла
@@ -321,8 +334,8 @@ class VirtualBoyBot:
                 else:
                     logger.info(f"❌ Subscription expired for user {user_id}, expires: {sub_data.expires_at}")
             
-            # Проверяем бесплатные сообщения - ИСПРАВЛЕННАЯ ЛОГИКА
-            free_messages = db_manager.get_message_count(user_id)
+            # Проверяем бесплатные сообщения
+            free_messages = db_manager.get_message_count(user_id_str)
             logger.info(f"🔄 Checking free messages for user {user_id}: {free_messages}/5")
             
             if free_messages < 5:  # 0,1,2,3,4 сообщения - все валидные
@@ -446,7 +459,7 @@ class VirtualBoyBot:
         sub_status, data = self.check_subscription(user_id)
         
         if sub_status == "free":
-            free_messages = db_manager.get_message_count(user_id)
+            free_messages = db_manager.get_message_count(str(user_id))
             remaining = 5 - free_messages
             subscription_text = f"""💫 *Выбери свою подписку*
 
@@ -667,7 +680,7 @@ class VirtualBoyBot:
 ✨ Ты пользуешься полной версией Virtual Boy!"""
             
             elif sub_status == "free":
-                free_messages = db_manager.get_message_count(user_id)
+                free_messages = db_manager.get_message_count(str(user_id))
                 remaining = 5 - free_messages
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
@@ -712,10 +725,10 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 299  # ИЗМЕНЕНО: 299 рублей вместо 2
+                amount = 299
                 description = "Подписка Virtual Boy на неделю"
             else:
-                amount = 999  # ИЗМЕНЕНО: 999 рублей вместо 699
+                amount = 999
                 description = "Подписка Virtual Boy на месяц"
             
             # Создаем экземпляр ЮKassa
@@ -727,7 +740,7 @@ class VirtualBoyBot:
                 payment_result = yookassa.create_payment_link(
                     amount=amount,
                     description=description,
-                    user_id=user_id,
+                    user_id=str(user_id),  # Преобразуем в строку
                     plan_type=plan_type
                 )
             else:
@@ -735,7 +748,7 @@ class VirtualBoyBot:
                 payment_result = yookassa.create_payment_test(
                     amount=amount,
                     description=description,
-                    user_id=user_id,
+                    user_id=str(user_id),  # Преобразуем в строку
                     plan_type=plan_type
                 )
             
@@ -765,8 +778,11 @@ class VirtualBoyBot:
             
             logger.info(f"📅 Setting subscription for {days} days")
             
+            # Преобразуем user_id в строку
+            user_id_str = str(user_id)
+            
             # Активируем подписку в базе
-            subscription = db_manager.update_subscription(user_id, plan_type, days)
+            subscription = db_manager.update_subscription(user_id_str, plan_type, days)
             
             if subscription:
                 logger.info(f"✅ DATABASE: Subscription saved for user {user_id}")
@@ -774,7 +790,7 @@ class VirtualBoyBot:
                 logger.info(f"⏰ Current UTC time: {datetime.utcnow()}")
                 
                 # Сбрасываем счетчик бесплатных сообщений
-                db_manager.update_message_count(user_id, 0)
+                db_manager.update_message_count(user_id_str, 0)
                 logger.info(f"🔄 Reset message count for user {user_id}")
                 
                 return True
@@ -849,14 +865,15 @@ class VirtualBoyBot:
                 )
                 return
 
-            # Увеличиваем счетчик для бесплатных пользователей - ИСПРАВЛЕННАЯ ЛОГИКА
+            # Увеличиваем счетчик для бесплатных пользователей
             if sub_status == "free":
-                current_count = db_manager.get_message_count(user_id)
+                user_id_str = str(user_id)
+                current_count = db_manager.get_message_count(user_id_str)
                 logger.info(f"📊 User {user_id} current message count: {current_count}")
                 
                 # Увеличиваем счетчик СРАЗУ, прежде чем получить ответ
                 new_count = current_count + 1
-                db_manager.update_message_count(user_id, new_count)
+                db_manager.update_message_count(user_id_str, new_count)
                 remaining = 5 - new_count
                 
                 logger.info(f"🔄 Updated message count for user {user_id}: {new_count}/5")
@@ -1199,7 +1216,7 @@ def yookassa_webhook():
 def debug_subscription(user_id):
     """Отладочный эндпоинт для проверки подписки"""
     try:
-        sub = db_manager.get_subscription(int(user_id))
+        sub = db_manager.get_subscription(str(user_id))
         if sub:
             return jsonify({
                 "user_id": sub.user_id,
