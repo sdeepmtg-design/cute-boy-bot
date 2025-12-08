@@ -6,6 +6,7 @@ import random
 import time
 import threading
 import json
+import warnings
 from datetime import datetime, timedelta
 from payment import YookassaPayment, check_yookassa_config
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
@@ -1162,4 +1163,5 @@ def home():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    import warningsn    warnings.filterwarnings("ignore", message="This is a development server")n    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    warnings.filterwarnings("ignore", message="This is a development server")
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
