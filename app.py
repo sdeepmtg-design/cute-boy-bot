@@ -6,10 +6,10 @@ import random
 import time
 import threading
 import json
-import warnings
 from datetime import datetime, timedelta
 from payment import YookassaPayment, check_yookassa_config
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
+import warnings
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -259,7 +259,7 @@ class VirtualBoyBot:
             return (random.random() < send_probability, random.choice(emotions))
 
     def check_subscription(self, user_id):
-        """Проверка подписки из БАЗЫ ДАННЫХ с улучшенной логикой"""
+        """Проверка подписки из БАЗЫ ДАННЫХ с исправленной логикой бесплатных сообщений"""
         try:
             sub_data = db_manager.get_subscription(user_id)
             
@@ -273,7 +273,7 @@ class VirtualBoyBot:
             
             # Проверяем бесплатные сообщения
             free_messages = db_manager.get_message_count(user_id)
-            if free_messages < 5:
+            if free_messages < 5:  # Исправлено: 0,1,2,3,4 сообщения - все валидные
                 logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5")
                 return "free", 5 - free_messages
             
@@ -761,11 +761,27 @@ class VirtualBoyBot:
                 )
                 return
 
-            # Увеличиваем счетчик для бесплатных пользователей
+            # Увеличиваем счетчик для бесплатных пользователей с исправленной логикой
             if sub_status == "free":
                 current_count = db_manager.get_message_count(user_id)
-                db_manager.update_message_count(user_id, current_count + 1)
-                remaining = 5 - (current_count + 1)
+                # Проверяем, не превысили ли лимит
+                if current_count >= 5:
+                    # Пользователь превысил лимит - отправляем сообщение об окончании
+                    limit_text = """❌ *Бесплатные сообщения закончились!*
+
+У тебя было 5 бесплатных сообщений. Для продолжения общения оформи подписку.
+
+💸 *Используй команду* /subscribe *для оформления подписки*"""
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=limit_text,
+                        parse_mode='Markdown'
+                    )
+                    return
+                else:
+                    # Увеличиваем счетчик
+                    db_manager.update_message_count(user_id, current_count + 1)
+                    remaining = 5 - (current_count + 1)
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
