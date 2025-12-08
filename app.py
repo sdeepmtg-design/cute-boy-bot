@@ -321,8 +321,10 @@ class VirtualBoyBot:
                 else:
                     logger.info(f"❌ Subscription expired for user {user_id}, expires: {sub_data.expires_at}")
             
-            # Проверяем бесплатные сообщения - ИСПРАВЛЕНИЕ ЛОГИКИ
+            # Проверяем бесплатные сообщения - ИСПРАВЛЕННАЯ ЛОГИКА
             free_messages = db_manager.get_message_count(user_id)
+            logger.info(f"🔄 Checking free messages for user {user_id}: {free_messages}/5")
+            
             if free_messages < 5:  # 0,1,2,3,4 сообщения - все валидные
                 logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5")
                 return "free", 5 - free_messages
@@ -850,12 +852,18 @@ class VirtualBoyBot:
             # Увеличиваем счетчик для бесплатных пользователей - ИСПРАВЛЕННАЯ ЛОГИКА
             if sub_status == "free":
                 current_count = db_manager.get_message_count(user_id)
+                logger.info(f"📊 User {user_id} current message count: {current_count}")
+                
+                # Увеличиваем счетчик СРАЗУ, прежде чем получить ответ
+                new_count = current_count + 1
+                db_manager.update_message_count(user_id, new_count)
+                remaining = 5 - new_count
+                
+                logger.info(f"🔄 Updated message count for user {user_id}: {new_count}/5")
                 
                 # Проверяем, не превысил ли пользователь лимит
-                if current_count >= 4:  # Если уже 4 сообщения, это последнее (5-е) бесплатное
-                    # Используем последнее сообщение
-                    db_manager.update_message_count(user_id, 5)
-                    remaining = 0
+                if new_count >= 5:
+                    logger.info(f"⏰ User {user_id} reached message limit: {new_count}/5")
                     
                     # Получаем ответ от AI для последнего бесплатного сообщения
                     bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -871,10 +879,6 @@ class VirtualBoyBot:
                     
                     bot.send_message(chat_id=chat_id, text=response)
                     return
-                else:
-                    # Увеличиваем счетчик
-                    db_manager.update_message_count(user_id, current_count + 1)
-                    remaining = 5 - (current_count + 1)
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
