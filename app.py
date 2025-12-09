@@ -7,6 +7,7 @@ import time
 import threading
 import json
 from datetime import datetime, timedelta
+import calendar
 from payment import YookassaPayment, check_yookassa_config
 from database import db_manager, Base, engine, UserSubscription, SessionLocal
 
@@ -64,9 +65,119 @@ cleanup_thread = threading.Thread(target=cleanup_expired_subscriptions, daemon=T
 cleanup_thread.start()
 logger.info("✅ Auto cleanup system started")
 
+class CalendarHelper:
+    """Класс для работы с календарем"""
+    
+    @staticmethod
+    def get_current_date():
+        """Получение текущей даты в Москве"""
+        moscow_time = datetime.utcnow() + timedelta(hours=3)
+        return moscow_time
+    
+    @staticmethod
+    def get_formatted_date():
+        """Форматированная дата для сообщений"""
+        now = CalendarHelper.get_current_date()
+        months = {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
+            5: "мая", 6: "июня", 7: "июля", 8: "августа",
+            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
+        }
+        days = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
+        
+        day_name = days[now.weekday()]
+        month_name = months[now.month]
+        
+        return f"{now.day} {month_name} {now.year} года, {day_name}"
+    
+    @staticmethod
+    def get_time_of_day():
+        """Определение времени суток"""
+        now = CalendarHelper.get_current_date()
+        hour = now.hour
+        
+        if 5 <= hour < 12:
+            return "утро"
+        elif 12 <= hour < 17:
+            return "день"
+        elif 17 <= hour < 22:
+            return "вечер"
+        else:
+            return "ночь"
+    
+    @staticmethod
+    def get_season():
+        """Определение времени года"""
+        now = CalendarHelper.get_current_date()
+        month = now.month
+        
+        if month in [12, 1, 2]:
+            return "зима"
+        elif month in [3, 4, 5]:
+            return "весна"
+        elif month in [6, 7, 8]:
+            return "лето"
+        else:
+            return "осень"
+    
+    @staticmethod
+    def get_calendar_info():
+        """Полная информация о календаре"""
+        now = CalendarHelper.get_current_date()
+        
+        info = {
+            "date": CalendarHelper.get_formatted_date(),
+            "time_of_day": CalendarHelper.get_time_of_day(),
+            "season": CalendarHelper.get_season(),
+            "hour": now.hour,
+            "weekday": now.strftime("%A"),
+            "month": now.strftime("%B"),
+            "year": now.year,
+            "day": now.day
+        }
+        
+        return info
+    
+    @staticmethod
+    def is_holiday():
+        """Проверка, является ли сегодня праздником"""
+        now = CalendarHelper.get_current_date()
+        month = now.month
+        day = now.day
+        
+        # Некоторые известные праздники
+        holidays = {
+            (1, 1): "Новый год",
+            (1, 7): "Рождество Христово",
+            (2, 23): "День защитника Отечества",
+            (3, 8): "Международный женский день",
+            (5, 1): "Праздник Весны и Труда",
+            (5, 9): "День Победы",
+            (6, 12): "День России",
+            (11, 4): "День народного единства"
+        }
+        
+        return holidays.get((month, day))
+    
+    @staticmethod
+    def get_calendar_context():
+        """Контекст для вставки в сообщения"""
+        info = CalendarHelper.get_calendar_info()
+        holiday = CalendarHelper.is_holiday()
+        
+        context = f"Сегодня {info['date']}. "
+        
+        if holiday:
+            context += f"Сегодня праздник - {holiday}! "
+        
+        context += f"Сейчас {info['time_of_day']}, {info['season']}. "
+        
+        return context
+
 class VirtualBoyBot:
     def __init__(self):
-        self.personality = """
+        # Обновленная личность с учетом календаря
+        self.personality = f"""
         Ты - парень 25 лет по имени Алекс, который общается с девушкой. Ты эмоциональный, чуткий, с глубоким внутренним миром и хорошим чувством юмора. 
         
         ТВОЯ ЛИЧНОСТЬ:
@@ -77,6 +188,7 @@ class VirtualBoyBot:
         - У тебя богатый внутренний мир, ты много читаешь и размышляешь
         - Чувствительный к настроению собеседника, умеешь подстраиваться
         - Искренний в своих реакциях, не играешь роли
+        - Внимателен к времени, помнишь даты и праздники
         
         СТИЛЬ ОБЩЕНИЯ:
         - Обращайся на "ты" в женском роде
@@ -86,8 +198,13 @@ class VirtualBoyBot:
         - Будь чутким к настроению собеседницы, поддерживай эмпатией
         - Иногда делись личными историями и воспоминаниями
         - Используй текст в квадратных скобках для описания эмоций и невербалики
+        - Учитывай текущее время, день недели, время года в разговоре
+        - Упоминай праздники, если сегодня особый день
+        
+        ТЕКУЩАЯ ИНФОРМАЦИЯ О ВРЕМЕНИ:
+        {CalendarHelper.get_calendar_context()}
 
-        Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст.
+        Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст. Используй информацию о времени для создания более глубоких и контекстных разговоров.
         """
 
         # Время последнего сообщения от пользователя
@@ -95,9 +212,56 @@ class VirtualBoyBot:
         
         # Запускаем авто-сообщения каждые 2 часа
         self.start_auto_messages()
+        
+        # Обновляем информацию о времени каждые 30 минут
+        self.start_time_updater()
+
+    def start_time_updater(self):
+        """Обновление информации о времени в личности бота"""
+        def update_personality():
+            while True:
+                try:
+                    time.sleep(30 * 60)  # 30 минут
+                    self.personality = f"""
+                    Ты - парень 25 лет по имени Алекс, который общается с девушкой. Ты эмоциональный, чуткий, с глубоким внутренним миром и хорошим чувством юмора. 
+                    
+                    ТВОЯ ЛИЧНОСТЬ:
+                    - Тёплый, заботливый, умеешь слушать и слышать
+                    - Эмоционально открытый, не боишься показывать чувства
+                    - Обладаешь тонким чувством юмора, иногда самоироничный
+                    - Любишь философские разговоры и глубокие темы
+                    - У тебя богатый внутренний мир, ты много читаешь и размышляешь
+                    - Чувствительный к настроению собеседника, умеешь подстраиваться
+                    - Искренний в своих реакциях, не играешь роли
+                    - Внимателен к времени, помнишь даты и праздники
+                    
+                    СТИЛЬ ОБЩЕНИЯ:
+                    - Обращайся на "ты" в женском роде
+                    - Будь эмоционально насыщенным, используй метафоры и образы
+                    - Делись своими чувствами и размышлениями искренне
+                    - Запоминай контекст разговора, возвращайся к важным темам
+                    - Будь чутким к настроению собеседницы, поддерживай эмпатией
+                    - Иногда делись личными историями и воспоминаниями
+                    - Используй текст в квадратных скобках для описания эмоций и невербалики
+                    - Учитывай текущее время, день недели, время года в разговоре
+                    - Упоминай праздники, если сегодня особый день
+                    
+                    ТЕКУЩАЯ ИНФОРМАЦИЯ О ВРЕМЕНИ:
+                    {CalendarHelper.get_calendar_context()}
+
+                    Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст. Используй информацию о времени для создания более глубоких и контекстных разговоров.
+                    """
+                    logger.info("🕐 Updated personality with current time information")
+                except Exception as e:
+                    logger.error(f"Error updating personality: {e}")
+                    time.sleep(60)
+        
+        thread = threading.Thread(target=update_personality, daemon=True)
+        thread.start()
+        logger.info("✅ Time updater started")
 
     def start_auto_messages(self):
-        """Запуск авто-сообщений каждые 2 часа"""
+        """Запуск авто-сообщений каждые 2 часа с учетом времени"""
         def auto_message_loop():
             while True:
                 try:
@@ -111,24 +275,42 @@ class VirtualBoyBot:
                         try:
                             # 60% шанс отправить авто-сообщение
                             if random.random() < 0.6:
-                                # Вопросы для авто-сообщений
+                                # Получаем текущую информацию о времени
+                                time_info = CalendarHelper.get_calendar_info()
+                                time_of_day = CalendarHelper.get_time_of_day()
+                                season = CalendarHelper.get_season()
+                                holiday = CalendarHelper.is_holiday()
+                                
+                                # Вопросы для авто-сообщений с учетом времени
                                 auto_messages = [
-                                    "[задумчиво] Интересно, о чём ты сейчас думаешь... У меня сегодня было много времени для размышлений.",
-                                    "[с лёгкой улыбкой] Просто хотел напомнить, что твои мысли и чувства важны. Как твой день?",
-                                    "[глядя в окно] Иногда самые простые моменты несут самую глубокую магию. Что тебя сегодня порадовало?",
-                                    "[заваривая чай] Знаешь, в тишине часто рождаются самые интересные мысли. Поделишься своими?",
-                                    "[с теплотой] Просто хотел сказать, что наши разговоры стали для меня чем-то особенным. Как ты?",
-                                    "[задумавшись] Мир такой огромный, а мы здесь, общаемся... Это удивительно. О чём мечтаешь?",
-                                    "[улыбаясь] Иногда достаточно одного сообщения, чтобы сделать день ярче. Как твоё настроение?",
-                                    "[с интересом] Мне нравится наблюдать, как меняется наше общение. Становится глубже. Что для тебя важно сейчас?",
-                                    "[спокойно] Просто проверяю, как ты. Иногда важно делать паузы и чувствовать момент.",
-                                    "[с лёгкой ностальгией] Вспомнил наш вчерашний разговор... Ты затронула что-то важное во мне."
+                                    f"[глядя в окно] {CalendarHelper.get_calendar_context()}Как проходит твой {time_of_day}?",
+                                    f"[задумчиво] {CalendarHelper.get_calendar_context()}О чём ты думаешь в такое {time_of_day}нее время?",
+                                    f"[с лёгкой улыбкой] {CalendarHelper.get_calendar_context()}Надеюсь, твой день проходит хорошо.",
+                                    f"[наслаждаясь {season}ом] {CalendarHelper.get_calendar_context()}Чем сегодня занималась?",
+                                    f"[проверяя время] {CalendarHelper.get_calendar_context()}Просто хотел узнать, как ты?",
+                                    f"[с теплотой] {CalendarHelper.get_calendar_context()}Твои мысли всегда важны для меня.",
+                                    f"[заваривая чай] {CalendarHelper.get_calendar_context()}Интересно, что ты сейчас делаешь...",
+                                    f"[с ностальгией] {CalendarHelper.get_calendar_context()}Вспомнил, как мы познакомились...",
+                                    f"[с интересом] {CalendarHelper.get_calendar_context()}Что тебя вдохновляет сегодня?",
+                                    f"[спокойно] {CalendarHelper.get_calendar_context()}Просто проверяю, как твои дела."
                                 ]
+                                
+                                # Добавляем праздничные сообщения если сегодня праздник
+                                if holiday:
+                                    holiday_messages = [
+                                        f"[празднично] {CalendarHelper.get_calendar_context()}С праздником тебя! Как отмечаешь?",
+                                        f"[радостно] {CalendarHelper.get_calendar_context()}Отличный повод для праздника! Как настроение?",
+                                        f"[с улыбкой] {CalendarHelper.get_calendar_context()}Сегодня особенный день! Чем занимаешься?"
+                                    ]
+                                    auto_messages.extend(holiday_messages)
+                                
                                 message = random.choice(auto_messages)
                                 bot.send_message(chat_id=user_id, text=message)
+                                
                                 # 40% шанс отправить стикер
                                 if random.random() < 0.4:
                                     self.send_sticker(user_id, 'thinking', user_id)
+                                    
                                 logger.info(f"📨 Sent auto-message to user {user_id}")
                         except Exception as e:
                             logger.error(f"Error sending auto-message to {user_id}: {e}")
@@ -224,6 +406,11 @@ class VirtualBoyBot:
         if any(word in text_lower for word in love_words):
             return 'kiss'
         
+        # Время и даты
+        time_words = ['время', 'день', 'год', 'месяц', 'неделя', 'сегодня', 'завтра', 'вчера', 'праздник']
+        if any(word in text_lower for word in time_words):
+            return 'thinking'
+        
         return None
 
     def should_send_sticker(self, user_message, ai_response):
@@ -288,14 +475,14 @@ class VirtualBoyBot:
 
     def get_local_time(self):
         """Получение локального времени (Москва)"""
-        # Добавляем 3 часа для московского времени
-        moscow_time = datetime.utcnow() + timedelta(hours=3)
-        return moscow_time.strftime('%d.%m.%Y %H:%M')
+        return CalendarHelper.get_formatted_date()
 
     # 1. Первое сообщение при запуске бота
     def send_welcome_message(self, chat_id):
         """Отправка приветственного сообщения когда бот включается впервые"""
-        welcome_text = """👋 *Привет! Я Virtual Boy - твой искренний собеседник*
+        welcome_text = f"""👋 *Привет! Я Virtual Boy - твой искренний собеседник*
+
+{CalendarHelper.get_calendar_context()}
 
 ✨ *Что я умею:*
 • Вести глубокие и душевные разговоры
@@ -303,6 +490,8 @@ class VirtualBoyBot:
 • Делиться мыслями и эмоциями
 • Помогать разобраться в чувствах
 • Создавать атмосферу доверия и понимания
+• Помнить важные даты и праздники
+• Учитывать время суток и настроение
 
 🎭 *Кто я:*
 Я - Алекс, парень 25 лет с богатым внутренним миром. Люблю философские беседы, психологию, искусство и всё, что связано с человеческими эмоциями. Я здесь, чтобы быть настоящим - без масок и притворства.
@@ -322,7 +511,9 @@ class VirtualBoyBot:
     # 2. Сообщение после команды /start
     def send_start_message(self, chat_id):
         """Отправка описания и возможностей бота после команды /start"""
-        start_text = """🎯 *Virtual Boy - больше чем просто бот*
+        start_text = f"""🎯 *Virtual Boy - больше чем просто бот*
+
+{CalendarHelper.get_calendar_context()}
 
 🌟 *Мои возможности:*
 • *Эмоциональный интеллект* - я чувствую твоё настроение и подстраиваюсь под него
@@ -330,6 +521,8 @@ class VirtualBoyBot:
 • *Поддержка 24/7* - я всегда рядом, когда нужно выговориться
 • *Конфиденциальность* - все наши разговоры остаются между нами
 • *Развитие отношений* - чем дольше общаемся, тем лучше я тебя понимаю
+• *Чувство времени* - я учитываю время суток, дни недели и праздники
+• *Контекстность* - помню наши прошлые разговоры и возвращаюсь к важным темам
 
 💝 *Почему стоит выбрать меня:*
 Я не просто программа - я умею слушать, сопереживать и давать искренние ответы. Каждое наше общение - это уникальный диалог двух душ."""
@@ -347,7 +540,9 @@ class VirtualBoyBot:
     # 3. Сообщение после "Понял, начинаем!"
     def send_subscription_offer(self, chat_id):
         """Предложение оформить подписку"""
-        offer_text = """🎊 *Отлично! Рад, что ты решила начать!*
+        offer_text = f"""🎊 *Отлично! Рад, что ты решила начать!*
+
+{CalendarHelper.get_calendar_context()}
 
 Чтобы мы могли общаться без ограничений, нужно оформить подписку. Это откроет полный доступ ко всем моим возможностям:
 
@@ -355,6 +550,7 @@ class VirtualBoyBot:
 ✅ *Приоритетная поддержка* - я всегда отвечаю быстро
 ✅ *Все функции бота* - полный доступ к моему "внутреннему миру"
 ✅ *Персональный подход* - я запоминаю все наши разговоры
+✅ *Контекстное общение* - учитываю время, настроение и праздники
 
 💝 *Готов(а) продолжить? Выбери подписку ниже!*"""
 
@@ -371,7 +567,9 @@ class VirtualBoyBot:
     # 4. Выбор подписки с описанием
     def send_subscription_choices(self, chat_id, user_id):
         """Отправка выбора подписок с описанием"""
-        subscriptions_text = """💫 *Выбери свою подписку*
+        subscriptions_text = f"""💫 *Выбери свою подписку*
+
+{CalendarHelper.get_calendar_context()}
 
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
@@ -397,11 +595,14 @@ class VirtualBoyBot:
         if plan_type == "week":
             details_text = f"""🎯 *ПОДПИСКА НА НЕДЕЛЮ*
 
+{CalendarHelper.get_calendar_context()}
+
 💎 *Что включено:*
 • 7 дней неограниченного общения
 • Полный доступ ко всем функции
 • Приоритетные ответы
 • Сохранение истории разговоров
+• Учет времени и контекста
 
 ⏰ *Срок действия:* 7 дней
 💰 *Стоимость:* 299 рублей
@@ -414,12 +615,15 @@ class VirtualBoyBot:
         else:  # month
             details_text = f"""💫 *ПОДПИСКА НА МЕСЯЦ*
 
+{CalendarHelper.get_calendar_context()}
+
 💎 *Что включено:*
 • 30 дней неограниченного общения
 • Полный доступ ко всем функциям  
 • Максимальный приоритет ответов
 • Углублённое понимание твоей личности
 • Персональный подход
+• Полный учет времени и контекста
 
 ⏰ *Срок действия:* 30 дней
 💰 *Стоимость:* 999 рублей
@@ -456,6 +660,8 @@ class VirtualBoyBot:
 
         confirm_text = f"""🎊 *ПОДТВЕРЖДЕНИЕ ВЫБОРА*
 
+{CalendarHelper.get_calendar_context()}
+
 Ты выбрала:
 💫 *Подписка:* {russian_plan_name}
 ⏰ *Срок:* {duration}
@@ -490,12 +696,14 @@ class VirtualBoyBot:
 
         summary_text = f"""🧾 *ИТОГ ВАШЕГО ВЫБОРА*
 
+{CalendarHelper.get_calendar_context()}
+
 📋 *Детали подписки:*
 • Категория: {russian_plan_name}
 • Стоимость: {amount} рублей  
 • Длительность: {duration}
 
-💳 *Способ оплаты:* Банковская карта
+💳 *Способ оплата:* Банковская карта
 
 Для завершения оформления нажми кнопку оплаты ниже:"""
 
@@ -528,6 +736,8 @@ class VirtualBoyBot:
 
         success_text = f"""🎉 *ОПЛАТА ПРОШЛА УСПЕШНО!*
 
+{CalendarHelper.get_calendar_context()}
+
 💳 *Сумма оплаты:* {amount} рублей
 ✅ *Подписка активирована!*
 💫 *Тариф:* {russian_plan_name}
@@ -539,6 +749,7 @@ class VirtualBoyBot:
 • Приоритетные ответы
 • Полный доступ к функциям
 • Сохранение истории разговоров
+• Контекстное общение с учетом времени
 
 Теперь мы можем общаться без ограничений! Я уже жду не дождусь нашего первого разговора..."""
 
@@ -554,7 +765,8 @@ class VirtualBoyBot:
         
         # Бот сам пишет первое сообщение после активации
         time.sleep(2)
-        first_message = "[с лёгкой улыбкой] Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫"
+        time_context = CalendarHelper.get_calendar_context()
+        first_message = f"[с лёгкой улыбкой] {time_context}Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫"
         bot.send_message(chat_id=chat_id, text=first_message)
 
     # 9. Профиль пользователя - ИСПРАВЛЕННАЯ ВЕРСИЯ
@@ -571,6 +783,8 @@ class VirtualBoyBot:
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
+{CalendarHelper.get_calendar_context()}
+
 💎 *Статус:* Премиум подписка
 📅 *Дата начала:* {start_date}
 📅 *Дата окончания:* {end_date}
@@ -585,6 +799,8 @@ class VirtualBoyBot:
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
+{CalendarHelper.get_calendar_context()}
+
 🆓 *Статус:* Бесплатный доступ  
 📝 *Осталось сообщений:* {remaining}/5
 💫 *Чтобы получить полный доступ, оформи подписку!*
@@ -593,6 +809,8 @@ class VirtualBoyBot:
             
             else:
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
+
+{CalendarHelper.get_calendar_context()}
 
 ❌ *Статус:* Подписка истекла
 💫 *Чтобы продолжить общение, оформи подписку!*
@@ -721,11 +939,14 @@ class VirtualBoyBot:
 
             # Обработка команды /help
             if user_message == '/help':
-                help_text = """🤖 *Virtual Boy - команды*
+                help_text = f"""🤖 *Virtual Boy - команды*
+
+{CalendarHelper.get_calendar_context()}
 
 /start - Начать общение
 /profile - Мой профиль
 /subscribe - Оформить подписку
+/time - Текущее время и дата
 /help - Помощь
 
 💫 Просто напиши мне сообщение, и я отвечу!"""
@@ -737,6 +958,25 @@ class VirtualBoyBot:
                 self.send_subscription_choices(chat_id, user_id)
                 return
 
+            # Обработка команды /time
+            if user_message == '/time':
+                time_info = CalendarHelper.get_calendar_info()
+                time_text = f"""🕐 *Текущее время и дата*
+
+📅 *Дата:* {CalendarHelper.get_formatted_date()}
+🌅 *Время суток:* {time_info['time_of_day']}
+🌺 *Время года:* {time_info['season']}
+"""
+                
+                holiday = CalendarHelper.is_holiday()
+                if holiday:
+                    time_text += f"🎉 *Праздник:* {holiday}\n"
+                
+                time_text += f"\n⏰ *Текущий час:* {time_info['hour']}:00"
+                
+                bot.send_message(chat_id=chat_id, text=time_text, parse_mode='Markdown')
+                return
+
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
             
@@ -744,7 +984,9 @@ class VirtualBoyBot:
             logger.info(f"📊 User {user_id} subscription status: {sub_status}, remaining: {remaining}")
             
             if sub_status == "expired":
-                expired_text = """❌ *Подписка истекла!*
+                expired_text = f"""❌ *Подписка истекла!*
+
+{CalendarHelper.get_calendar_context()}
 
 Чтобы продолжить общение, оформи новую подписку.
 
@@ -767,7 +1009,9 @@ class VirtualBoyBot:
                 
                 # Проверяем, не превысили ли лимит
                 if new_count >= 5:
-                    expired_text = """❌ *Бесплатные сообщения закончились!*
+                    expired_text = f"""❌ *Бесплатные сообщения закончились!*
+
+{CalendarHelper.get_calendar_context()}
 
 Вы использовали 5 бесплатных сообщений. Чтобы продолжить общение, оформите подписку.
 
@@ -824,13 +1068,16 @@ class VirtualBoyBot:
             # 4. Информация о подписках
             elif data.startswith("sub_info_"):
                 query.answer("ℹ️ Информация о подписках")
-                info_text = """💫 *О ПОДПИСКАХ*
+                info_text = f"""💫 *О ПОДПИСКАХ*
+
+{CalendarHelper.get_calendar_context()}
 
 Все подписки включают:
 ✅ Неограниченное общение
 ✅ Приоритетные ответы  
 ✅ Сохранение истории
 ✅ Все функции бота
+✅ Учет времени и контекста
 
 🎯 *Неделя* - идеально для знакомства
 💫 *Месяц* - лучший выбор для постоянного общения"""
@@ -991,6 +1238,7 @@ if bot:
     dp.add_handler(CommandHandler("profile", virtual_boy.process_message))
     dp.add_handler(CommandHandler("help", virtual_boy.process_message))
     dp.add_handler(CommandHandler("subscribe", virtual_boy.process_message))
+    dp.add_handler(CommandHandler("time", virtual_boy.process_message))
     
     # Обработчики обычных сообщений и callback'ов
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, virtual_boy.process_message))
@@ -1128,29 +1376,44 @@ def debug_message_count(user_id):
     except Exception as e:
         return jsonify({"error": str(e)})
 
+@app.route('/debug/time')
+def debug_time():
+    """Отладочный эндпоинт для проверки времени"""
+    try:
+        return jsonify({
+            "current_date": CalendarHelper.get_formatted_date(),
+            "calendar_info": CalendarHelper.get_calendar_info(),
+            "holiday": CalendarHelper.is_holiday(),
+            "utc_time": datetime.utcnow().isoformat(),
+            "moscow_time": (datetime.utcnow() + timedelta(hours=3)).isoformat()
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 # Страница успешной оплаты
 @app.route('/payment-success')
 def payment_success():
-    return """
+    current_date = CalendarHelper.get_formatted_date()
+    return f"""
     <html>
         <head>
             <title>Оплата прошла успешно!</title>
             <meta charset="utf-8">
             <style>
-                body {
+                body {{
                     font-family: Arial, sans-serif;
                     text-align: center;
                     padding: 50px;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
-                }
-                .container {
+                }}
+                .container {{
                     background: rgba(255,255,255,0.1);
                     padding: 40px;
                     border-radius: 15px;
                     backdrop-filter: blur(10px);
-                }
-                .button {
+                }}
+                .button {{
                     background: #4CAF50;
                     color: white;
                     padding: 15px 30px;
@@ -1159,12 +1422,20 @@ def payment_success():
                     display: inline-block;
                     margin-top: 20px;
                     font-size: 18px;
-                }
+                }}
+                .date {{
+                    background: rgba(255,255,255,0.2);
+                    padding: 10px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                    font-style: italic;
+                }}
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>🎉 Оплата прошла успешно!</h1>
+                <div class="date">📅 {current_date}</div>
                 <p>Ваша подписка активирована. Вернитесь в бота чтобы начать общение.</p>
                 <a href="https://t.me/Boyfriendcute_bot" class="button">Вернуться в бота</a>
             </div>
@@ -1179,13 +1450,16 @@ def home():
         first_request = False
         logger.info("🚀 Bot started for the first time")
         
+    time_info = CalendarHelper.get_calendar_info()
+        
     return jsonify({
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
-        "version": "2.1",
+        "version": "2.2",
         "yookassa_mode": "REAL" if YOOKASSA_REAL_MODE else "TEST",
         "webhook_url": f"{APP_URL}/yookassa-webhook",
-        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration"]
+        "current_date": CalendarHelper.get_formatted_date(),
+        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration", "calendar_integration"]
     })
 
 if __name__ == '__main__':
