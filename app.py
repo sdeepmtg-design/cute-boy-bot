@@ -757,16 +757,12 @@ class VirtualBoyBot:
                 )
                 return
 
-            # Увеличиваем счетчик для бесплатных пользователей
+            # Для бесплатных пользователей увеличиваем счетчик
             if sub_status == "free":
-                current_count = db_manager.get_message_count(user_id)
-                logger.info(f"📝 User {user_id} current count: {current_count}, incrementing...")
-                
                 # Увеличиваем счетчик на 1
-                new_count = current_count + 1
-                db_manager.update_message_count(user_id, new_count)
-                
+                new_count = db_manager.increment_message_count(user_id)
                 remaining = 5 - new_count
+                
                 logger.info(f"📝 User {user_id} new count: {new_count}, remaining: {remaining}")
                 
                 # Проверяем, не превысили ли лимит

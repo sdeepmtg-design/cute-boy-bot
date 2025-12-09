@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
@@ -42,7 +42,7 @@ class UserSubscription(Base):
     __tablename__ = "user_subscriptions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, unique=True, index=True)
+    user_id = Column(BigInteger, unique=True, index=True)  # ИЗМЕНЕНО: BigInteger для больших Telegram ID
     plan_type = Column(String)  # 'week' or 'month'
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime)
@@ -55,7 +55,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(BigInteger, index=True)  # ИЗМЕНЕНО: BigInteger для больших Telegram ID
     role = Column(String)  # 'user' or 'assistant'
     content = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -64,7 +64,7 @@ class UserMessageCount(Base):
     __tablename__ = "user_message_counts"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, unique=True, index=True)
+    user_id = Column(BigInteger, unique=True, index=True)  # ИЗМЕНЕНО: BigInteger для больших Telegram ID
     message_count = Column(Integer, default=0)
     last_updated = Column(DateTime, default=datetime.utcnow)
 
@@ -171,7 +171,12 @@ class DatabaseManager:
                 UserMessageCount.user_id == user_id
             ).first()
             
-            return user_count.message_count if user_count else 0
+            if user_count:
+                logger.info(f"📊 Message count for user {user_id}: {user_count.message_count}")
+                return user_count.message_count
+            else:
+                logger.info(f"📊 No message count record for user {user_id}, returning 0")
+                return 0
             
         except Exception as e:
             logger.error(f"Error getting message count: {e}")
@@ -180,6 +185,8 @@ class DatabaseManager:
     def update_message_count(self, user_id, count):
         """Обновление счетчика сообщений"""
         try:
+            logger.info(f"🔄 Updating message count for user {user_id} to {count}")
+            
             user_count = self.session.query(UserMessageCount).filter(
                 UserMessageCount.user_id == user_id
             ).first()
@@ -187,18 +194,33 @@ class DatabaseManager:
             if user_count:
                 user_count.message_count = count
                 user_count.last_updated = datetime.utcnow()
+                logger.info(f"📝 Updated existing count for user {user_id}")
             else:
                 user_count = UserMessageCount(
                     user_id=user_id,
                     message_count=count
                 )
                 self.session.add(user_count)
+                logger.info(f"📝 Created new count record for user {user_id}")
             
             self.session.commit()
+            logger.info(f"✅ Successfully saved count {count} for user {user_id}")
             
         except Exception as e:
-            logger.error(f"Error updating message count: {e}")
+            logger.error(f"❌ Error updating message count for user {user_id}: {e}")
             self.session.rollback()
+    
+    def increment_message_count(self, user_id):
+        """Увеличить счетчик сообщений на 1"""
+        try:
+            current_count = self.get_message_count(user_id)
+            new_count = current_count + 1
+            self.update_message_count(user_id, new_count)
+            logger.info(f"➕ Incremented message count for user {user_id}: {current_count} -> {new_count}")
+            return new_count
+        except Exception as e:
+            logger.error(f"Error incrementing message count: {e}")
+            return current_count
     
     def cleanup_expired_subscriptions(self):
         """Очистка истекших подписок"""
