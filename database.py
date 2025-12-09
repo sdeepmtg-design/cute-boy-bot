@@ -2,6 +2,7 @@ import os
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text, inspect
 from datetime import datetime, timedelta
 import logging
 
@@ -74,51 +75,72 @@ class UserMessageCount(Base):
     def __repr__(self):
         return f"<UserMessageCount(user_id={self.user_id}, count={self.message_count})>"
 
-# Создаем таблицы с force_recreate если нужно
-def create_tables_with_retry():
-    """Создание таблиц с возможностью пересоздания"""
+def check_and_fix_table_columns():
+    """Проверяет и исправляет типы колонок в существующих таблицах"""
     try:
-        # Проверяем, существует ли таблица conversations с правильным типом
         connection = engine.connect()
         
-        # Пытаемся создать таблицы
-        Base.metadata.create_all(bind=engine)
+        # Определяем тип СУБД
+        is_postgresql = 'postgresql' in DATABASE_URL
+        is_sqlite = 'sqlite' in DATABASE_URL
         
-        # Проверяем структуру таблицы conversations
-        inspector = inspect(engine)
-        if 'conversations' in inspector.get_table_names():
-            columns = inspector.get_columns('conversations')
-            user_id_col = next((col for col in columns if col['name'] == 'user_id'), None)
-            if user_id_col and str(user_id_col['type']) == 'INTEGER':
-                logger.warning("⚠️ Table 'conversations' has INTEGER user_id, dropping and recreating...")
-                # Удаляем и пересоздаем таблицу
-                Conversation.__table__.drop(engine)
-                Base.metadata.create_all(bind=engine)
-                logger.info("✅ Recreated 'conversations' table with BigInteger")
+        if is_postgresql:
+            # Для PostgreSQL проверяем и исправляем типы колонок
+            tables_to_check = [
+                ('user_subscriptions', 'user_id'),
+                ('conversations', 'user_id'),
+                ('user_message_counts', 'user_id')
+            ]
+            
+            for table_name, column_name in tables_to_check:
+                # Проверяем тип колонки
+                result = connection.execute(text(
+                    f"SELECT data_type FROM information_schema.columns "
+                    f"WHERE table_name = '{table_name}' AND column_name = '{column_name}'"
+                )).fetchone()
+                
+                if result:
+                    current_type = result[0]
+                    if current_type == 'integer':
+                        logger.warning(f"⚠️ {table_name}.{column_name} is INTEGER, converting to BIGINT")
+                        try:
+                            connection.execute(text(
+                                f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE BIGINT"
+                            ))
+                            connection.commit()
+                            logger.info(f"✅ Converted {table_name}.{column_name} to BIGINT")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to convert {table_name}.{column_name}: {e}")
+                            connection.rollback()
         
         connection.close()
-        logger.info("✅ Database tables created/recreated successfully")
+        
+    except Exception as e:
+        logger.error(f"Error checking table columns: {e}")
+
+def create_tables_safe():
+    """Безопасное создание таблиц с проверкой существующих"""
+    try:
+        # Сначала пытаемся создать таблицы
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Tables created successfully")
+        
+        # Проверяем и исправляем типы колонок если нужно
+        check_and_fix_table_columns()
         
     except Exception as e:
         logger.error(f"❌ Error creating tables: {e}")
-        # В случае ошибки пробуем создать заново
+        # Пробуем альтернативный подход
         try:
+            # Удаляем и пересоздаем таблицы
             Base.metadata.drop_all(bind=engine)
             Base.metadata.create_all(bind=engine)
             logger.info("✅ Tables dropped and recreated successfully")
         except Exception as e2:
             logger.error(f"❌ Failed to recreate tables: {e2}")
 
-try:
-    from sqlalchemy import inspect
-    create_tables_with_retry()
-except ImportError:
-    # Просто создаем таблицы если не можем импортировать inspect
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables created successfully")
-    except Exception as e:
-        logger.error(f"❌ Error creating tables: {e}")
+# Создаем таблицы
+create_tables_safe()
 
 class DatabaseManager:
     def __init__(self):
@@ -139,7 +161,7 @@ class DatabaseManager:
             expires_at = created_at + timedelta(days=days)
             
             subscription = UserSubscription(
-                user_id=user_id,
+                user_id=int(user_id),  # Убеждаемся что это int
                 plan_type=plan_type,
                 created_at=created_at,
                 expires_at=expires_at,
@@ -184,8 +206,7 @@ class DatabaseManager:
     def save_conversation(self, user_id, role, content):
         """Сохранение сообщения в историю"""
         try:
-            # Логируем данные для отладки
-            logger.info(f"💾 Saving conversation: user_id={user_id} (type: {type(user_id)}), role={role}, content_length={len(content)}")
+            logger.info(f"💾 Saving conversation: user_id={user_id}, role={role}")
             
             conversation = Conversation(
                 user_id=int(user_id),  # Убеждаемся что это int
@@ -248,14 +269,33 @@ class DatabaseManager:
                 user_count.last_updated = datetime.utcnow()
                 logger.info(f"📝 Updated existing count for user {user_id}")
             else:
-                user_count = UserMessageCount(
-                    user_id=int(user_id),  # Убеждаемся что это int
-                    message_count=count
-                )
-                self.session.add(user_count)
-                logger.info(f"📝 Created new count record for user {user_id}")
+                # Пробуем вставить с приведением типа
+                try:
+                    user_count = UserMessageCount(
+                        user_id=int(user_id),  # Явно приводим к int
+                        message_count=count
+                    )
+                    self.session.add(user_count)
+                    self.session.commit()
+                    logger.info(f"📝 Created new count record for user {user_id}")
+                except Exception as insert_error:
+                    # Если ошибка из-за типа, пробуем альтернативный метод
+                    logger.warning(f"⚠️ Insert failed, trying alternative method: {insert_error}")
+                    self.session.rollback()
+                    
+                    # Пробуем прямой SQL запрос
+                    from sqlalchemy import text
+                    self.session.execute(text(
+                        "INSERT INTO user_message_counts (user_id, message_count, last_updated) "
+                        "VALUES (:user_id, :count, :now)"
+                    ), {
+                        'user_id': int(user_id),
+                        'count': count,
+                        'now': datetime.utcnow()
+                    })
+                    self.session.commit()
+                    logger.info(f"📝 Created count record via SQL for user {user_id}")
             
-            self.session.commit()
             logger.info(f"✅ Successfully saved count {count} for user {user_id}")
             
         except Exception as e:
@@ -307,44 +347,6 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting all subscriptions: {e}")
             return []
-    
-    def fix_user_id_types(self):
-        """Исправление типов user_id если они неправильные"""
-        try:
-            # Эта функция только для экстренного исправления
-            logger.warning("⚠️ Attempting to fix user_id types...")
-            
-            # Проверяем структуру таблиц
-            from sqlalchemy import text
-            
-            # Для PostgreSQL
-            if 'postgresql' in DATABASE_URL:
-                # Проверяем тип колонки user_id в conversations
-                result = self.session.execute(text(
-                    "SELECT column_name, data_type FROM information_schema.columns "
-                    "WHERE table_name = 'conversations' AND column_name = 'user_id'"
-                )).fetchone()
-                
-                if result and result[1] == 'integer':
-                    logger.warning("⚠️ conversations.user_id is INTEGER, converting to BIGINT")
-                    # Конвертируем тип
-                    self.session.execute(text(
-                        "ALTER TABLE conversations ALTER COLUMN user_id TYPE BIGINT"
-                    ))
-                    self.session.commit()
-                    logger.info("✅ Converted conversations.user_id to BIGINT")
-            
-            logger.info("✅ User ID type check completed")
-            
-        except Exception as e:
-            logger.error(f"❌ Error fixing user_id types: {e}")
-            self.session.rollback()
 
 # Глобальный экземпляр менеджера базы данных
 db_manager = DatabaseManager()
-
-# При первом запуске проверяем и исправляем типы если нужно
-try:
-    db_manager.fix_user_id_types()
-except Exception as e:
-    logger.warning(f"Could not check user_id types: {e}")
