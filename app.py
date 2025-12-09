@@ -145,7 +145,6 @@ class VirtualBoyBot:
     def get_active_users(self):
         """Получение списка активных пользователей с подпиской"""
         try:
-            # Получаем всех пользователей с активной подпиской из базы данных
             session = SessionLocal()
             active_subscriptions = session.query(UserSubscription).filter(
                 UserSubscription.expires_at > datetime.utcnow(),
@@ -251,6 +250,7 @@ class VirtualBoyBot:
     def check_subscription(self, user_id):
         """Проверка подписки из БАЗЫ ДАННЫХ с улучшенной логикой"""
         try:
+            # Сначала проверяем подписку в базе данных
             sub_data = db_manager.get_subscription(user_id)
             
             if sub_data:
@@ -263,9 +263,12 @@ class VirtualBoyBot:
             
             # Проверяем бесплатные сообщения
             free_messages = db_manager.get_message_count(user_id)
+            logger.info(f"📝 User {user_id} has {free_messages} free messages")
+            
             if free_messages < 5:
-                logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5")
-                return "free", 5 - free_messages
+                remaining = 5 - free_messages
+                logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5, remaining: {remaining}")
+                return "free", remaining
             
             logger.info(f"💔 No subscription and no free messages for user {user_id}")
             return "expired", None
@@ -561,7 +564,6 @@ class VirtualBoyBot:
             sub_status, sub_data = self.check_subscription(user_id)
             
             if sub_status == "premium":
-                # ИСПРАВЛЕНИЕ: используем created_at вместо activated_at
                 start_date = sub_data.created_at.strftime('%d.%m.%Y')
                 end_date = sub_data.expires_at.strftime('%d.%m.%Y')
                 days_left = (sub_data.expires_at - datetime.utcnow()).days
@@ -620,10 +622,10 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 299  # ИЗМЕНЕНО: 299 рублей вместо 2
+                amount = 299
                 description = "Подписка Virtual Boy на неделю"
             else:
-                amount = 999  # ИЗМЕНЕНО: 999 рублей вместо 699
+                amount = 999
                 description = "Подписка Virtual Boy на месяц"
             
             # Создаем экземпляр ЮKassa
@@ -737,6 +739,10 @@ class VirtualBoyBot:
 
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
+            
+            # Логируем статус подписки
+            logger.info(f"📊 User {user_id} subscription status: {sub_status}, remaining: {remaining}")
+            
             if sub_status == "expired":
                 expired_text = """❌ *Подписка истекла!*
 
@@ -754,8 +760,29 @@ class VirtualBoyBot:
             # Увеличиваем счетчик для бесплатных пользователей
             if sub_status == "free":
                 current_count = db_manager.get_message_count(user_id)
-                db_manager.update_message_count(user_id, current_count + 1)
-                remaining = 5 - (current_count + 1)
+                logger.info(f"📝 User {user_id} current count: {current_count}, incrementing...")
+                
+                # Увеличиваем счетчик на 1
+                new_count = current_count + 1
+                db_manager.update_message_count(user_id, new_count)
+                
+                remaining = 5 - new_count
+                logger.info(f"📝 User {user_id} new count: {new_count}, remaining: {remaining}")
+                
+                # Проверяем, не превысили ли лимит
+                if new_count >= 5:
+                    expired_text = """❌ *Бесплатные сообщения закончились!*
+
+Вы использовали 5 бесплатных сообщений. Чтобы продолжить общение, оформите подписку.
+
+💸 *Используйте команду* /subscribe *для оформления подписки*"""
+                    
+                    bot.send_message(
+                        chat_id=chat_id,
+                        text=expired_text,
+                        parse_mode='Markdown'
+                    )
+                    return
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -766,8 +793,9 @@ class VirtualBoyBot:
             if should_send:
                 self.send_sticker(chat_id, emotion_type, user_id)
             
+            # Добавляем информацию о количестве оставшихся сообщений для бесплатных пользователей
             if sub_status == "free":
-                response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
+                response += f"\n\n📝 *Бесплатных сообщений осталось:* {remaining}/5"
             
             bot.send_message(chat_id=chat_id, text=response)
             
@@ -818,7 +846,7 @@ class VirtualBoyBot:
                 query.answer(f"📱 {plan_type} подписка")
                 self.send_subscription_details(chat_id, plan_type, user_id)
             
-            # 6. Подтверждение подписки
+            # 6. Подтверждение подпики
             elif data.startswith("confirm_"):
                 plan_type = data.split('_')[1]
                 query.answer("✅ Подтверждено")
@@ -1088,6 +1116,19 @@ def debug_subscription(user_id):
                 "days_remaining": (sub.expires_at - datetime.utcnow()).days
             })
         return jsonify({"error": "No subscription found"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+@app.route('/debug/message-count/<user_id>')
+def debug_message_count(user_id):
+    """Отладочный эндпоинт для проверки счетчика сообщений"""
+    try:
+        count = db_manager.get_message_count(int(user_id))
+        return jsonify({
+            "user_id": user_id,
+            "message_count": count,
+            "remaining_free": 5 - count
+        })
     except Exception as e:
         return jsonify({"error": str(e)})
 
