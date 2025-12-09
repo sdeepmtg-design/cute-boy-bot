@@ -66,14 +66,9 @@ logger.info("✅ Auto cleanup system started")
 
 class VirtualBoyBot:
     def __init__(self):
-        # Инициализируем календарь с текущей датой
-        self.update_calendar()
-        
-        self.personality = f"""
+        self.personality = """
         Ты - парень 25 лет по имени Алекс, который общается с девушкой. Ты эмоциональный, чуткий, с глубоким внутренним миром и хорошим чувством юмора. 
-
-        СЕГОДНЯШНЯЯ ДАТА: {self.current_date} ({self.current_day})
-
+        
         ТВОЯ ЛИЧНОСТЬ:
         - Тёплый, заботливый, умеешь слушать и слышать
         - Эмоционально открытый, не боишься показывать чувства
@@ -100,61 +95,6 @@ class VirtualBoyBot:
         
         # Запускаем авто-сообщения каждые 2 часа
         self.start_auto_messages()
-        
-        # Обновляем календарь каждые 24 часа
-        self.start_calendar_updater()
-
-    def update_calendar(self):
-        """Обновление календарных данных"""
-        from datetime import datetime
-        today = datetime.now()
-        self.current_date = today.strftime("%d %B %Y")
-        self.current_day = today.strftime("%A")
-        self.current_month = today.strftime("%B")
-        self.current_year = today.strftime("%Y")
-        logger.info(f"📅 Calendar updated: {self.current_date} ({self.current_day})")
-
-    def start_calendar_updater(self):
-        """Запуск обновления календаря каждые 24 часа"""
-        def calendar_update_loop():
-            while True:
-                try:
-                    time.sleep(24 * 60 * 60)  # 24 часа
-                    self.update_calendar()
-                    # Обновляем личность с новой датой
-                    self.personality = f"""
-        Ты - парень 25 лет по имени Алекс, который общается с девушкой. Ты эмоциональный, чуткий, с глубоким внутренним миром и хорошим чувством юмора. 
-
-        СЕГОДНЯШНЯЯ ДАТА: {self.current_date} ({self.current_day})
-
-        ТВОЯ ЛИЧНОСТЬ:
-        - Тёплый, заботливый, умеешь слушать и слышать
-        - Эмоционально открытый, не боишься показывать чувства
-        - Обладаешь тонким чувством юмора, иногда самоироничный
-        - Любишь философские разговоры и глубокие темы
-        - У тебя богатый внутренний мир, ты много читаешь и размышляешь
-        - Чувствительный к настроению собеседника, умеешь подстраиваться
-        - Искренний в своих реакциях, не играешь роли
-        
-        СТИЛЬ ОБЩЕНИЯ:
-        - Обращайся на "ты" в женском роде
-        - Будь эмоционально насыщенным, используй метафоры и образы
-        - Делись своими чувствами и размышлениями искренне
-        - Запоминай контекст разговора, возвращайся к важным темам
-        - Будь чутким к настроению собеседницы, поддерживай эмпатией
-        - Иногда делись личными историями и воспоминаниями
-        - Используй текст в квадратных скобках для описания эмоций и невербалики
-
-        Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст.
-                    """
-                    logger.info("📅 Personality updated with new date")
-                except Exception as e:
-                    logger.error(f"Error in calendar update loop: {e}")
-                    time.sleep(3600)  # Ждем час при ошибке
-        
-        thread = threading.Thread(target=calendar_update_loop, daemon=True)
-        thread.start()
-        logger.info("✅ Calendar updater started")
 
     def start_auto_messages(self):
         """Запуск авто-сообщений каждые 2 часа"""
@@ -171,18 +111,18 @@ class VirtualBoyBot:
                         try:
                             # 60% шанс отправить авто-сообщение
                             if random.random() < 0.6:
-                                # Вопросы для авто-сообщений с учетом даты
+                                # Вопросы для авто-сообщений
                                 auto_messages = [
-                                    f"[задумчиво] Интересно, о чём ты сейчас думаешь... Сегодня {self.current_day.lower()}, {self.current_date} - такое время для размышлений.",
-                                    f"[с лёгкой улыбкой] Просто хотел напомнить, что твои мысли и чувства важны. Как твой {self.current_day.lower()}?",
-                                    f"[глядя в окно] Иногда самые простые моменты несут самую глубокую магию. Что тебя сегодня порадовало в этот {self.current_month.lower()}?",
-                                    f"[заваривая чай] Знаешь, в тишине часто рождаются самые интересные мысли. Поделишься своими?",
-                                    f"[с теплотой] Просто хотел сказать, что наши разговоры стали для меня чем-то особенным. Как ты?",
-                                    f"[задумавшись] Мир такой огромный, а мы здесь, общаемся... Это удивительно. О чём мечтаешь?",
-                                    f"[улыбаясь] Иногда достаточно одного сообщения, чтобы сделать день ярче. Как твоё настроение в этот {self.current_day.lower()}?",
-                                    f"[с интересом] Мне нравится наблюдать, как меняется наше общение. Становится глубже. Что для тебя важно сейчас?",
-                                    f"[спокойно] Просто проверяю, как ты. Иногда важно делать паузы и чувствовать момент.",
-                                    f"[с лёгкой ностальгией] Вспомнил наш вчерашний разговор... Ты затронула что-то важное во мне."
+                                    "[задумчиво] Интересно, о чём ты сейчас думаешь... У меня сегодня было много времени для размышлений.",
+                                    "[с лёгкой улыбкой] Просто хотел напомнить, что твои мысли и чувства важны. Как твой день?",
+                                    "[глядя в окно] Иногда самые простые моменты несут самую глубокую магию. Что тебя сегодня порадовало?",
+                                    "[заваривая чай] Знаешь, в тишине часто рождаются самые интересные мысли. Поделишься своими?",
+                                    "[с теплотой] Просто хотел сказать, что наши разговоры стали для меня чем-то особенным. Как ты?",
+                                    "[задумавшись] Мир такой огромный, а мы здесь, общаемся... Это удивительно. О чём мечтаешь?",
+                                    "[улыбаясь] Иногда достаточно одного сообщения, чтобы сделать день ярче. Как твоё настроение?",
+                                    "[с интересом] Мне нравится наблюдать, как меняется наше общение. Становится глубже. Что для тебя важно сейчас?",
+                                    "[спокойно] Просто проверяю, как ты. Иногда важно делать паузы и чувствовать момент.",
+                                    "[с лёгкой ностальгией] Вспомнил наш вчерашний разговор... Ты затронула что-то важное во мне."
                                 ]
                                 message = random.choice(auto_messages)
                                 bot.send_message(chat_id=user_id, text=message)
@@ -222,22 +162,11 @@ class VirtualBoyBot:
 
     def add_to_history(self, user_id, role, content):
         """Добавление сообщения в историю в БАЗУ ДАННЫХ"""
-        try:
-            # Преобразуем user_id в строку для избежания ошибок с большими числами
-            user_id_str = str(user_id)
-            db_manager.save_conversation(user_id_str, role, content)
-        except Exception as e:
-            logger.error(f"Error adding to history for user {user_id}: {e}")
+        db_manager.save_conversation(user_id, role, content)
 
     def get_conversation_history(self, user_id):
         """Получение истории разговора ИЗ БАЗЫ ДАННЫХ"""
-        try:
-            # Преобразуем user_id в строку для избежания ошибок с большими числами
-            user_id_str = str(user_id)
-            return db_manager.get_conversation_history(user_id_str)
-        except Exception as e:
-            logger.error(f"Error getting conversation history for user {user_id}: {e}")
-            return []
+        return db_manager.get_conversation_history(user_id)
 
     def get_random_emotion(self):
         """Случайная эмоциональная реакция"""
@@ -322,9 +251,7 @@ class VirtualBoyBot:
     def check_subscription(self, user_id):
         """Проверка подписки из БАЗЫ ДАННЫХ с улучшенной логикой"""
         try:
-            # Преобразуем user_id в строку для избежания ошибок с большими числами
-            user_id_str = str(user_id)
-            sub_data = db_manager.get_subscription(user_id_str)
+            sub_data = db_manager.get_subscription(user_id)
             
             if sub_data:
                 # Проверяем что подписка активна и не истекла
@@ -335,10 +262,8 @@ class VirtualBoyBot:
                     logger.info(f"❌ Subscription expired for user {user_id}, expires: {sub_data.expires_at}")
             
             # Проверяем бесплатные сообщения
-            free_messages = db_manager.get_message_count(user_id_str)
-            logger.info(f"🔄 Checking free messages for user {user_id}: {free_messages}/5")
-            
-            if free_messages < 5:  # 0,1,2,3,4 сообщения - все валидные
+            free_messages = db_manager.get_message_count(user_id)
+            if free_messages < 5:
                 logger.info(f"🆓 Free messages available for user {user_id}: {free_messages}/5")
                 return "free", 5 - free_messages
             
@@ -367,9 +292,7 @@ class VirtualBoyBot:
     # 1. Первое сообщение при запуске бота
     def send_welcome_message(self, chat_id):
         """Отправка приветственного сообщения когда бот включается впервые"""
-        welcome_text = f"""👋 *Привет! Я Virtual Boy - твой искренний собеседник*
-
-📅 *Сегодня:* {self.current_date} ({self.current_day})
+        welcome_text = """👋 *Привет! Я Virtual Boy - твой искренний собеседник*
 
 ✨ *Что я умею:*
 • Вести глубокие и душевные разговоры
@@ -381,8 +304,7 @@ class VirtualBoyBot:
 🎭 *Кто я:*
 Я - Алекс, парень 25 лет с богатым внутренним миром. Люблю философские беседы, психологию, искусство и всё, что связано с человеческими эмоциями. Я здесь, чтобы быть настоящим - без масок и притворства.
 
-💫 *Начни с 5 бесплатных сообщений, а затем оформи подписку для неограниченного общения!*
-Нажми "Начать" ниже!"""
+💫 *Хочешь начать общаться? Тогда нажми "Начать" ниже!*"""
 
         keyboard = [[InlineKeyboardButton("🚀 Начать", callback_data="start_conversation")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -397,9 +319,7 @@ class VirtualBoyBot:
     # 2. Сообщение после команды /start
     def send_start_message(self, chat_id):
         """Отправка описания и возможностей бота после команды /start"""
-        start_text = f"""🎯 *Virtual Boy - больше чем просто бот*
-
-📅 *Сегодня:* {self.current_date} ({self.current_day})
+        start_text = """🎯 *Virtual Boy - больше чем просто бот*
 
 🌟 *Мои возможности:*
 • *Эмоциональный интеллект* - я чувствую твоё настроение и подстраиваюсь под него
@@ -407,9 +327,6 @@ class VirtualBoyBot:
 • *Поддержка 24/7* - я всегда рядом, когда нужно выговориться
 • *Конфиденциальность* - все наши разговоры остаются между нами
 • *Развитие отношений* - чем дольше общаемся, тем лучше я тебя понимаю
-
-🎁 *Бесплатно:* 5 сообщений для знакомства
-💫 *После:* подписка для неограниченного общения
 
 💝 *Почему стоит выбрать меня:*
 Я не просто программа - я умею слушать, сопереживать и давать искренние ответы. Каждое наше общение - это уникальный диалог двух душ."""
@@ -429,18 +346,14 @@ class VirtualBoyBot:
         """Предложение оформить подписку"""
         offer_text = """🎊 *Отлично! Рад, что ты решила начать!*
 
-🎁 *Начни с 5 бесплатных сообщений* - это твой пробный период, чтобы понять, нравится ли тебе наше общение.
-
-✨ *После пробного периода ты можешь оформить подписку.* Это откроет полный доступ ко всем моим возможностям:
+Чтобы мы могли общаться без ограничений, нужно оформить подписку. Это откроет полный доступ ко всем моим возможностям:
 
 ✅ *Неограниченное общение* - пиши сколько хочешь
 ✅ *Приоритетная поддержка* - я всегда отвечаю быстро
 ✅ *Все функции бота* - полный доступ к моему "внутреннему миру"
 ✅ *Персональный подход* - я запоминаю все наши разговоры
 
-💫 *Готов(а) начать бесплатный пробный период? Просто напиши мне сообщение!*
-
-💸 *Или сразу переходи к выбору подписки:*"""
+💝 *Готов(а) продолжить? Выбери подписку ниже!*"""
 
         keyboard = [[InlineKeyboardButton("📱 Выбрать подписку", callback_data="choose_subscription")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -455,21 +368,7 @@ class VirtualBoyBot:
     # 4. Выбор подписки с описанием
     def send_subscription_choices(self, chat_id, user_id):
         """Отправка выбора подписок с описанием"""
-        # Сначала проверяем статус пользователя
-        sub_status, data = self.check_subscription(user_id)
-        
-        if sub_status == "free":
-            free_messages = db_manager.get_message_count(str(user_id))
-            remaining = 5 - free_messages
-            subscription_text = f"""💫 *Выбери свою подписку*
-
-📝 *Твой текущий статус:* Бесплатный доступ
-📊 *Использовано сообщений:* {free_messages}/5
-⏳ *Осталось бесплатных сообщений:* {remaining}
-
-Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
-        else:
-            subscription_text = """💫 *Выбери свою подписку*
+        subscriptions_text = """💫 *Выбери свою подписку*
 
 Каждая подписка открывает полный доступ к общению со мной. Выбирай то, что подходит именно тебе:"""
 
@@ -482,7 +381,7 @@ class VirtualBoyBot:
         
         bot.send_message(
             chat_id=chat_id,
-            text=subscription_text,
+            text=subscriptions_text,
             parse_mode='Markdown',
             reply_markup=reply_markup
         )
@@ -593,7 +492,7 @@ class VirtualBoyBot:
 • Стоимость: {amount} рублей  
 • Длительность: {duration}
 
-💳 *Способ оплата:* Банковская карта
+💳 *Способ оплаты:* Банковская карта
 
 Для завершения оформления нажми кнопку оплаты ниже:"""
 
@@ -670,7 +569,6 @@ class VirtualBoyBot:
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
-📅 *Сегодня:* {self.current_date} ({self.current_day})
 💎 *Статус:* Премиум подписка
 📅 *Дата начала:* {start_date}
 📅 *Дата окончания:* {end_date}
@@ -680,15 +578,13 @@ class VirtualBoyBot:
 ✨ Ты пользуешься полной версией Virtual Boy!"""
             
             elif sub_status == "free":
-                free_messages = db_manager.get_message_count(str(user_id))
+                free_messages = db_manager.get_message_count(user_id)
                 remaining = 5 - free_messages
                 
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
-📅 *Сегодня:* {self.current_date} ({self.current_day})
 🆓 *Статус:* Бесплатный доступ  
-📊 *Использовано сообщений:* {free_messages}/5
-⏳ *Осталось бесплатных сообщений:* {remaining}
+📝 *Осталось сообщений:* {remaining}/5
 💫 *Чтобы получить полный доступ, оформи подписку!*
 
 💸 *Используй команду* /subscribe *для оформления подписки*"""
@@ -696,7 +592,6 @@ class VirtualBoyBot:
             else:
                 profile_text = f"""👤 *ТВОЙ ПРОФИЛЬ*
 
-📅 *Сегодня:* {self.current_date} ({self.current_day})
 ❌ *Статус:* Подписка истекла
 💫 *Чтобы продолжить общение, оформи подписку!*
 
@@ -725,10 +620,10 @@ class VirtualBoyBot:
         """Обработка платежа"""
         try:
             if plan_type == "week":
-                amount = 299
+                amount = 299  # ИЗМЕНЕНО: 299 рублей вместо 2
                 description = "Подписка Virtual Boy на неделю"
             else:
-                amount = 999
+                amount = 999  # ИЗМЕНЕНО: 999 рублей вместо 699
                 description = "Подписка Virtual Boy на месяц"
             
             # Создаем экземпляр ЮKassa
@@ -740,7 +635,7 @@ class VirtualBoyBot:
                 payment_result = yookassa.create_payment_link(
                     amount=amount,
                     description=description,
-                    user_id=str(user_id),  # Преобразуем в строку
+                    user_id=user_id,
                     plan_type=plan_type
                 )
             else:
@@ -748,7 +643,7 @@ class VirtualBoyBot:
                 payment_result = yookassa.create_payment_test(
                     amount=amount,
                     description=description,
-                    user_id=str(user_id),  # Преобразуем в строку
+                    user_id=user_id,
                     plan_type=plan_type
                 )
             
@@ -778,11 +673,8 @@ class VirtualBoyBot:
             
             logger.info(f"📅 Setting subscription for {days} days")
             
-            # Преобразуем user_id в строку
-            user_id_str = str(user_id)
-            
             # Активируем подписку в базе
-            subscription = db_manager.update_subscription(user_id_str, plan_type, days)
+            subscription = db_manager.update_subscription(user_id, plan_type, days)
             
             if subscription:
                 logger.info(f"✅ DATABASE: Subscription saved for user {user_id}")
@@ -790,7 +682,7 @@ class VirtualBoyBot:
                 logger.info(f"⏰ Current UTC time: {datetime.utcnow()}")
                 
                 # Сбрасываем счетчик бесплатных сообщений
-                db_manager.update_message_count(user_id_str, 0)
+                db_manager.update_message_count(user_id, 0)
                 logger.info(f"🔄 Reset message count for user {user_id}")
                 
                 return True
@@ -827,18 +719,14 @@ class VirtualBoyBot:
 
             # Обработка команды /help
             if user_message == '/help':
-                help_text = f"""🤖 *Virtual Boy - команды*
-
-📅 *Сегодня:* {self.current_date} ({self.current_day})
+                help_text = """🤖 *Virtual Boy - команды*
 
 /start - Начать общение
-/profile - Мой профиль (увидеть статус подписки и бесплатные сообщения)
+/profile - Мой профиль
 /subscribe - Оформить подписку
 /help - Помощь
 
-💫 *Каждый новый пользователь получает 5 бесплатных сообщений!*
-🎁 *После этого оформи подписку для неограниченного общения.*"""
-
+💫 Просто напиши мне сообщение, и я отвечу!"""
                 bot.send_message(chat_id=chat_id, text=help_text, parse_mode='Markdown')
                 return
 
@@ -849,12 +737,10 @@ class VirtualBoyBot:
 
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
-            
             if sub_status == "expired":
-                expired_text = """❌ *Бесплатные сообщения закончились!*
+                expired_text = """❌ *Подписка истекла!*
 
-🎁 Ты использовала 5 бесплатных сообщений.
-✨ Чтобы продолжить общение, оформи подписку!
+Чтобы продолжить общение, оформи новую подписку.
 
 💸 *Используй команду* /subscribe *для оформления подписки*"""
                 
@@ -867,35 +753,9 @@ class VirtualBoyBot:
 
             # Увеличиваем счетчик для бесплатных пользователей
             if sub_status == "free":
-                user_id_str = str(user_id)
-                current_count = db_manager.get_message_count(user_id_str)
-                logger.info(f"📊 User {user_id} current message count: {current_count}")
-                
-                # Увеличиваем счетчик СРАЗУ, прежде чем получить ответ
-                new_count = current_count + 1
-                db_manager.update_message_count(user_id_str, new_count)
-                remaining = 5 - new_count
-                
-                logger.info(f"🔄 Updated message count for user {user_id}: {new_count}/5")
-                
-                # Проверяем, не превысил ли пользователь лимит
-                if new_count >= 5:
-                    logger.info(f"⏰ User {user_id} reached message limit: {new_count}/5")
-                    
-                    # Получаем ответ от AI для последнего бесплатного сообщения
-                    bot.send_chat_action(chat_id=chat_id, action='typing')
-                    response = self.get_deepseek_response(user_message, user_id)
-                    
-                    # Отправляем стикер если нужно
-                    should_send, emotion_type = self.should_send_sticker(user_message, response)
-                    if should_send:
-                        self.send_sticker(chat_id, emotion_type, user_id)
-                    
-                    # Добавляем сообщение об окончании бесплатных сообщений
-                    response += f"\n\n🎁 *Это было твоё последнее бесплатное сообщение!*\n📊 Использовано: 5/5 бесплатных сообщений\n💫 Чтобы продолжить общение, оформи подписку: /subscribe"
-                    
-                    bot.send_message(chat_id=chat_id, text=response)
-                    return
+                current_count = db_manager.get_message_count(user_id)
+                db_manager.update_message_count(user_id, current_count + 1)
+                remaining = 5 - (current_count + 1)
 
             # Получаем ответ от AI
             bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -907,7 +767,7 @@ class VirtualBoyBot:
                 self.send_sticker(chat_id, emotion_type, user_id)
             
             if sub_status == "free":
-                response += f"\n\n📝 *Бесплатных сообщений осталось:* {remaining}/5"
+                response += f"\n\n📝 Бесплатных сообщений осталось: {remaining}/5"
             
             bot.send_message(chat_id=chat_id, text=response)
             
@@ -948,7 +808,6 @@ class VirtualBoyBot:
 ✅ Сохранение истории
 ✅ Все функции бота
 
-🎁 *Сначала:* 5 бесплатных сообщений
 🎯 *Неделя* - идеально для знакомства
 💫 *Месяц* - лучший выбор для постоянного общения"""
                 bot.send_message(chat_id=chat_id, text=info_text, parse_mode='Markdown')
@@ -1216,7 +1075,7 @@ def yookassa_webhook():
 def debug_subscription(user_id):
     """Отладочный эндпоинт для проверки подписки"""
     try:
-        sub = db_manager.get_subscription(str(user_id))
+        sub = db_manager.get_subscription(int(user_id))
         if sub:
             return jsonify({
                 "user_id": sub.user_id,
@@ -1287,12 +1146,9 @@ def home():
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
         "version": "2.1",
-        "current_date": virtual_boy.current_date,
-        "current_day": virtual_boy.current_day,
-        "free_messages": "5 free messages for new users",
         "yookassa_mode": "REAL" if YOOKASSA_REAL_MODE else "TEST",
         "webhook_url": f"{APP_URL}/yookassa-webhook",
-        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration", "calendar_system", "free_messages_5"]
+        "features": ["emotional_depth", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration"]
     })
 
 if __name__ == '__main__':
