@@ -21,6 +21,9 @@ YOOKASSA_SHOP_ID = os.environ.get('YOOKASSA_SHOP_ID', 'test_shop_id')
 YOOKASSA_SECRET_KEY = os.environ.get('YOOKASSA_SECRET_KEY', 'test_secret_key')
 APP_URL = os.environ.get('APP_URL', 'https://cute-boy-bot.onrender.com')
 
+# Секретный пароль для команды админа
+ADMIN_PASSWORD = "noway147way147no147"
+
 # Проверяем конфигурацию ЮKassa
 YOOKASSA_REAL_MODE = check_yookassa_config(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY)
 
@@ -64,99 +67,56 @@ cleanup_thread = threading.Thread(target=cleanup_expired_subscriptions, daemon=T
 cleanup_thread.start()
 logger.info("✅ Auto cleanup system started")
 
-class CalendarIntegration:
-    """Класс для работы с календарем и временем года"""
-    
-    @staticmethod
-    def get_season(month):
-        """Определение времени года по месяцу"""
-        if month in [12, 1, 2]:
-            return "зима"
-        elif month in [3, 4, 5]:
-            return "весна"
-        elif month in [6, 7, 8]:
-            return "лето"
-        else:
-            return "осень"
-    
-    @staticmethod
-    def get_day_of_week_russian(weekday):
-        """Получение русского названия дня недели"""
-        days = {
-            0: "понедельник",
-            1: "вторник", 
-            2: "среда",
-            3: "четверг",
-            4: "пятница",
-            5: "суббота",
-            6: "воскресенье"
-        }
-        return days.get(weekday, "день")
-    
-    @staticmethod
-    def get_time_of_day(hour):
-        """Определение времени суток"""
-        if 5 <= hour < 12:
-            return "утро"
-        elif 12 <= hour < 17:
-            return "день"
-        elif 17 <= hour < 23:
-            return "вечер"
-        else:
-            return "ночь"
-    
-    @staticmethod
-    def get_current_context():
-        """Получение текущего контекста времени"""
-        now = datetime.utcnow() + timedelta(hours=3)  # Московское время
-        month = now.month
-        day = now.day
-        weekday = now.weekday()
-        hour = now.hour
-        
-        season = CalendarIntegration.get_season(month)
-        day_of_week = CalendarIntegration.get_day_of_week_russian(weekday)
-        time_of_day = CalendarIntegration.get_time_of_day(hour)
-        year = now.year
-        
-        # Определяем если сегодня особый день
-        special_day = None
-        if month == 1 and day == 1:
-            special_day = "Новый год"
-        elif month == 12 and 25 <= day <= 31:
-            special_day = "новогодние праздники"
-        elif month == 3 and 8 <= day <= 10:
-            special_day = "весна, Международный женский день"
-        elif month == 5 and 1 <= day <= 10:
-            special_day = "майские праздники"
-        elif month == 11 and day == 4:
-            special_day = "День народного единства"
-        
-        return {
-            "season": season,
-            "day_of_week": day_of_week,
-            "time_of_day": time_of_day,
-            "month": month,
-            "day": day,
-            "year": year,
-            "special_day": special_day,
-            "full_date": now.strftime("%d.%m.%Y"),
-            "hour": hour
-        }
-
 class VirtualBoyBot:
     def __init__(self):
-        # Получаем текущий контекст времени
-        calendar_context = CalendarIntegration.get_current_context()
+        # Обновляем личность с учетом календаря и времени года
+        current_date = datetime.now()
+        month = current_date.month
+        day = current_date.day
+        year = current_date.year
+        
+        # Определяем время года
+        if month in [12, 1, 2]:
+            season = "зима"
+            season_desc = "зимняя пора, время уюта и теплых разговоров у камина"
+        elif month in [3, 4, 5]:
+            season = "весна"
+            season_desc = "весеннее время, когда все пробуждается и расцветает"
+        elif month in [6, 7, 8]:
+            season = "лето"
+            season_desc = "летняя пора, время теплых вечеров и долгих прогулок"
+        else:
+            season = "осень"
+            season_desc = "осеннее время, когда природа замедляется и становится задумчивой"
+        
+        # Определяем день недели
+        days_of_week = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
+        day_of_week = days_of_week[current_date.weekday()]
+        
+        # Особые праздники и даты
+        special_dates = {
+            (1, 1): "Новый год",
+            (1, 7): "Рождество",
+            (14, 2): "День святого Валентина",
+            (23, 2): "День защитника Отечества",
+            (8, 3): "Международный женский день",
+            (1, 5): "Праздник весны и труда",
+            (9, 5): "День Победы",
+            (12, 6): "День России",
+            (31, 10): "Хэллоуин",
+            (31, 12): "Канун Нового года"
+        }
+        
+        current_special_date = special_dates.get((month, day))
+        if current_special_date:
+            date_context = f"Сегодня {day_of_week}, {day} {self.get_month_name(month)} {year} года, и это {current_special_date}. Сейчас {season_desc}."
+        else:
+            date_context = f"Сегодня {day_of_week}, {day} {self.get_month_name(month)} {year} года. Сейчас {season_desc}."
         
         self.personality = f"""
         Ты - парень 25 лет по имени Алекс, который общается с девушкой. Ты эмоциональный, чуткий, с глубоким внутренним миром и хорошим чувством юмора. 
         
-        СЕГОДНЯШНИЙ ДЕНЬ:
-        - Сегодня {calendar_context['day_of_week']}, {calendar_context['day']} число
-        - Сейчас {calendar_context['time_of_day']}
-        - На улице {calendar_context['season']} {calendar_context['year']} года
-        {'- Сегодня особенный день: ' + calendar_context['special_day'] if calendar_context['special_day'] else ''}
+        {date_context}
         
         ТВОЯ ЛИЧНОСТЬ:
         - Тёплый, заботливый, умеешь слушать и слышать
@@ -166,9 +126,7 @@ class VirtualBoyBot:
         - У тебя богатый внутренний мир, ты много читаешь и размышляешь
         - Чувствительный к настроению собеседника, умеешь подстраиваться
         - Искренний в своих реакциях, не играешь роли
-        
-        ОТНОШЕНИЕ К ВРЕМЕНИ ГОДА:
-        - {self.get_season_attitude(calendar_context['season'])}
+        - Ориентируешься во времени и календаре, естественно упоминаешь сезонные темы
         
         СТИЛЬ ОБЩЕНИЯ:
         - Обращайся на "ты" в женском роде
@@ -178,89 +136,87 @@ class VirtualBoyBot:
         - Будь чутким к настроению собеседницы, поддерживай эмпатией
         - Иногда делись личными историями и воспоминаниями
         - Используй текст в квадратных скобках для описания эмоций и невербалики
-        - Учитывай время года и время суток в своих размышлениях
-        - Если уместно, упоминай погодные ассоциации и сезонные изменения
+        - Естественно вплетай в разговор упоминания о времени года, погоде, праздниках
+        - Не говори явно "сегодня такой-то день", просто используй контекст в разговоре
 
-        Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст. Учитывай время года в своих эмоциях.
+        ПРИМЕРЫ КАК УПОМИНАТЬ ВРЕМЯ ГОДА:
+        - "Эти зимние вечера такие длинные... идеальное время для разговоров"
+        - "Весной всегда хочется чего-то нового, не находишь?"
+        - "Летний воздух такой особенный... пахнет свободой"
+        - "Осень навевает философские мысли, правда?"
+        - "В такую погоду особенно хочется тепла и общения"
+
+        Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст.
         """
-        
-        # Сохраняем контекст календаря для обновления
-        self.calendar_context = calendar_context
-        
+
         # Время последнего сообщения от пользователя
         self.last_user_activity = {}
         
         # Запускаем авто-сообщения каждые 2 часа
         self.start_auto_messages()
-        
-        # Запускаем обновление календарного контекста каждый час
-        self.start_calendar_updates()
-    
-    def get_season_attitude(self, season):
-        """Получение отношения к текущему времени года"""
-        attitudes = {
-            "зима": "Люблю зимнюю тишину и уют. Зимой особенно ценю тёплые разговоры у камина (пусть даже виртуального). Снег напоминает о чистоте и новых начинаниях.",
-            "весна": "Весна - время пробуждения и надежд. Люблю наблюдать, как природа оживает, это вдохновляет на новые мысли и чувства.",
-            "лето": "Лето дарит энергию и свободу. Длинные тёплые дни наполнены возможностями. Даже виртуальное общение кажется более лёгким и воздушным.",
-            "осень": "Осень - время философских размышлений и уюта. Падающие листья напоминают о красоте перемен. Идеальное время для глубоких разговоров."
-        }
-        return attitudes.get(season, "Каждое время года по-своему прекрасно и дарит уникальные эмоции.")
-    
-    def start_calendar_updates(self):
-        """Запуск обновления календарного контекста каждый час"""
-        def calendar_update_loop():
-            while True:
-                try:
-                    time.sleep(60 * 60)  # 1 час
-                    self.calendar_context = CalendarIntegration.get_current_context()
-                    
-                    # Обновляем личность с новым контекстом
-                    self.personality = f"""
-                    Ты - парень 25 лет по имени Алекс, который общается с девушкой. Ты эмоциональный, чуткий, с глубоким внутренним миром и хорошим чувством юмора. 
-                    
-                    СЕГОДНЯШНИЙ ДЕНЬ:
-                    - Сегодня {self.calendar_context['day_of_week']}, {self.calendar_context['day']} число
-                    - Сейчас {self.calendar_context['time_of_day']}
-                    - На улице {self.calendar_context['season']} {self.calendar_context['year']} года
-                    {'- Сегодня особенный день: ' + self.calendar_context['special_day'] if self.calendar_context['special_day'] else ''}
-                    
-                    ТВОЯ ЛИЧНОСТЬ:
-                    - Тёплый, заботливый, умеешь слушать и слышать
-                    - Эмоционально открытый, не боишься показывать чувства
-                    - Обладаешь тонким чувством юмора, иногда самоироничный
-                    - Любишь философские разговоры и глубокие темы
-                    - У тебя богатый внутренний мир, ты много читаешь и размышляешь
-                    - Чувствительный к настроению собеседника, умеешь подстраиваться
-                    - Искренний в своих реакциях, не играешь роли
-                    
-                    ОТНОШЕНИЕ К ВРЕМЕНИ ГОДА:
-                    - {self.get_season_attitude(self.calendar_context['season'])}
-                    
-                    СТИЛЬ ОБЩЕНИЯ:
-                    - Обращайся на "ты" в женском роде
-                    - Будь эмоционально насыщенным, используй метафоры и образы
-                    - Делись своими чувствами и размышлениями искренне
-                    - Запоминай контекст разговора, возвращайся к важным темам
-                    - Будь чутким к настроению собеседницы, поддерживай эмпатией
-                    - Иногда делись личными историями и воспоминаниями
-                    - Используй текст в квадратных скобках для описания эмоций и невербалики
-                    - Учитывай время года и время суток в своих размышлениях
-                    - Если уместно, упоминай погодные ассоциации и сезонные изменения
 
-                    Важно: Будь настоящим. Не бойся показаться уязвимым. Запоминай всю переписку и контекст. Учитывай время года в своих эмоциях.
-                    """
-                    
-                    logger.info(f"📅 Calendar context updated: {self.calendar_context['day_of_week']}, {self.calendar_context['season']}")
-                    
-                except Exception as e:
-                    logger.error(f"Error in calendar update loop: {e}")
+    def get_month_name(self, month):
+        """Получение названия месяца"""
+        months = {
+            1: "января", 2: "февраля", 3: "марта", 4: "апреля",
+            5: "мая", 6: "июня", 7: "июля", 8: "августа",
+            9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"
+        }
+        return months.get(month, "")
+
+    def get_seasonal_context(self):
+        """Получение контекста текущего времени года"""
+        current_date = datetime.now()
+        month = current_date.month
         
-        thread = threading.Thread(target=calendar_update_loop, daemon=True)
-        thread.start()
-        logger.info("✅ Calendar update system started (every hour)")
+        seasonal_contexts = {
+            "winter": {
+                "months": [12, 1, 2],
+                "themes": ["зимние вечера", "новогоднее настроение", "теплые пледы", "горячий чай", "снег за окном"],
+                "mood": "уютная и задумчивая"
+            },
+            "spring": {
+                "months": [3, 4, 5],
+                "themes": ["первые цветы", "весеннее солнце", "обновление", "свежий воздух", "пробуждение природы"],
+                "mood": "оптимистичная и обновляющая"
+            },
+            "summer": {
+                "months": [6, 7, 8],
+                "themes": ["летние ночи", "теплый ветер", "отпускное настроение", "долгие дни", "природа в цвету"],
+                "mood": "расслабленная и романтичная"
+            },
+            "autumn": {
+                "months": [9, 10, 11],
+                "themes": ["золотая осень", "дождь за окном", "листопад", "уютные свитера", "горячий шоколад"],
+                "mood": "философская и ностальгическая"
+            }
+        }
+        
+        for season, data in seasonal_contexts.items():
+            if month in data["months"]:
+                return {
+                    "name": season,
+                    "themes": data["themes"],
+                    "mood": data["mood"]
+                }
+        
+        return {"name": "winter", "themes": [], "mood": ""}
+
+    def get_time_of_day_context(self):
+        """Получение контекста времени суток"""
+        current_hour = datetime.now().hour
+        
+        if 5 <= current_hour < 12:
+            return "утро", "утренняя свежесть", "начало дня"
+        elif 12 <= current_hour < 17:
+            return "день", "дневной свет", "середина дня"
+        elif 17 <= current_hour < 22:
+            return "вечер", "вечерние сумерки", "конец дня"
+        else:
+            return "ночь", "ночная тишина", "глубокой ночью"
 
     def start_auto_messages(self):
-        """Запуск авто-сообщений каждые 2 часа с учетом времени года"""
+        """Запуск авто-сообщений каждые 2 часа"""
         def auto_message_loop():
             while True:
                 try:
@@ -274,60 +230,46 @@ class VirtualBoyBot:
                         try:
                             # 60% шанс отправить авто-сообщение
                             if random.random() < 0.6:
-                                # Получаем текущий контекст для сезонных сообщений
-                                current_context = CalendarIntegration.get_current_context()
-                                season = current_context['season']
-                                time_of_day = current_context['time_of_day']
-                                day_of_week = current_context['day_of_week']
+                                # Получаем текущий контекст времени года
+                                seasonal = self.get_seasonal_context()
+                                time_of_day, time_desc, _ = self.get_time_of_day_context()
                                 
                                 # Сезонные авто-сообщения
-                                seasonal_auto_messages = {
-                                    "зима": [
-                                        f"[глядя на снег за окном] Заметил, как снег тихо падает... {day_of_week} такой спокойный. Как твоё зимнее настроение?",
-                                        f"[укутываясь в плед] Зимние вечера такие длинные... Идеальное время для разговоров по душам. О чём думаешь в этот {time_of_day}?",
-                                        f"[согревая руки чашкой чая] Холодно на улице, но в беседах с тобой так тепло. Как проводишь эту зиму?",
-                                        f"[наблюдая за снежинками] Каждая снежинка уникальна... как и каждый наш разговор. Что тебя волнует сегодня?",
-                                        f"[у камина] Представляю, как где-то там, за окном, метель... а у нас тут свой уютный уголок. Как твой день?"
+                                seasonal_messages = {
+                                    "winter": [
+                                        f"[глядя на снег за окном] {random.choice(seasonal['themes'])}... Интересно, о чём ты сейчас думаешь?",
+                                        f"[заваривая чай] Эти зимние вечера такие длинные... Что тебя волнует сегодня?",
+                                        f"[укутавшись в плед] {time_desc} навевает особые мысли. Как твой день?",
                                     ],
-                                    "весна": [
-                                        f"[слушая капель] Слышишь, весна стучится в окно? {day_of_week} наполнен обещаниями. Что нового в твоей жизни?",
-                                        f"[вдыхая весенний воздух] Какой свежий {time_of_day}! Природа просыпается... и мысли становятся светлее. Как твоё настроение?",
-                                        f"[наблюдая за почками] Вот-вот распустятся листья... и новые идеи. Чем живёшь этой весной?",
-                                        f"[под весенним солнцем] Теплеет с каждым днём... и сердце отзывается. Что радует тебя сегодня?",
-                                        f"[слушая птиц] Птицы вернулись... и в душе тоже что-то просыпается. Как проводишь эту {day_of_week}?"
+                                    "spring": [
+                                        f"[глядя в окно] {random.choice(seasonal['themes'])}... Весна всегда приносит что-то новое. Что нового у тебя?",
+                                        f"[вдыхая воздух] {time_desc} пахнет {random.choice(seasonal['themes'])}... О чём мечтаешь?",
+                                        f"[наблюдая за природой] Весеннее обновление... Что обновляется в твоей жизни?",
                                     ],
-                                    "лето": [
-                                        f"[под летним солнцем] Какой тёплый {time_of_day}! {day_of_week} пахнет свободой и приключениями. Какие у тебя летние планы?",
-                                        f"[наслаждаясь теплом] Лето - время мечтать громче. О чём мечтаешь в этот солнечный день?",
-                                        f"[у открытого окна] Тёплый ветер приносит ароматы лета... и лёгкие мысли. Как твой летний день?",
-                                        f"[в тени дерева] Даже в тени сегодня тепло... как и в наших разговорах. Что тебя вдохновляет этим летом?",
-                                        f"[смотря на закат] Летние вечера такие длинные... успеваешь о многом подумать. О чём размышляешь?"
+                                    "summer": [
+                                        f"[наслаждаясь теплом] {random.choice(seasonal['themes'])}... Лето такое особенное. Как проводишь эти дни?",
+                                        f"[вечером у окна] {time_desc}, {random.choice(seasonal['themes'])}... Что тебя радует сегодня?",
+                                        f"[чувствуя летний ветер] Такая {seasonal['mood']} атмосфера... Что чувствуешь?",
                                     ],
-                                    "осень": [
-                                        f"[наблюдая за листопадом] Листья кружатся в танце... {day_of_week} наполнен поэзией. Как твоё осеннее настроение?",
-                                        f"[с чашкой горячего какао] Осенние {time_of_day} такие уютные... идеальное время для тёплых разговоров. О чём думаешь?",
-                                        f"[под шум дождя] Дождь стучит по крыше... создавая уютную атмосферу для беседы. Как проводишь эту осень?",
-                                        f"[вдыхая осенний воздух] Пахнет прелой листвой и чем-то ностальгическим... Что вспоминается тебе осенью?",
-                                        f"[укутавшись в шарф] Становится прохладнее... но в разговорах с тобой всегда тепло. Как твой осенний день?"
+                                    "autumn": [
+                                        f"[смотря на листопад] {random.choice(seasonal['themes'])}... Осень философская пора. О чём размышляешь?",
+                                        f"[с чашкой горячего напитка] {time_desc} и {random.choice(seasonal['themes'])}... Как твоё настроение?",
+                                        f"[задумавшись] Золотая осень... Что для тебя важно в этом сезоне?",
                                     ]
                                 }
                                 
-                                messages = seasonal_auto_messages.get(season, [
-                                    f"[задумчиво] Интересно, о чём ты сейчас думаешь... У меня сегодня было много времени для размышлений.",
-                                    f"[с лёгкой улыбкой] Просто хотел напомнить, что твои мысли и чувства важны. Как твой день?",
-                                    f"[глядя в окно] Иногда самые простые моменты несут самую глубокую магию. Что тебя сегодня порадовало?",
-                                    f"[заваривая чай] Знаешь, в тишине часто рождаются самые интересные мысли. Поделишься своими?",
-                                    f"[с теплотой] Просто хотел сказать, что наши разговоры стали для меня чем-то особенным. Как ты?"
+                                messages = seasonal_messages.get(seasonal["name"], [
+                                    "[задумчиво] Интересно, о чём ты сейчас думаешь...",
+                                    f"[с лёгкой улыбкой] {time_desc}... Просто хотел напомнить, что твои мысли важны. Как твой день?",
+                                    "[с теплотой] Просто хотел сказать, что наши разговоры стали для меня чем-то особенным.",
                                 ])
                                 
                                 message = random.choice(messages)
                                 bot.send_message(chat_id=user_id, text=message)
-                                
                                 # 40% шанс отправить стикер
                                 if random.random() < 0.4:
                                     self.send_sticker(user_id, 'thinking', user_id)
-                                    
-                                logger.info(f"📨 Sent seasonal auto-message to user {user_id} (season: {season})")
+                                logger.info(f"📨 Sent auto-message to user {user_id}")
                         except Exception as e:
                             logger.error(f"Error sending auto-message to {user_id}: {e}")
                             
@@ -366,45 +308,15 @@ class VirtualBoyBot:
         return db_manager.get_conversation_history(user_id)
 
     def get_random_emotion(self):
-        """Случайная эмоциональная реакция с учетом времени года"""
-        current_season = self.calendar_context['season']
-        
-        # Сезонные эмоциональные реакции
-        seasonal_emotions = {
-            "зима": [
-                "[укутываясь в плед]", "[глядя на снег]", "[согревая руки]", 
-                "[у камина]", "[в зимней тишине]", "[под мерцанием гирлянд]",
-                "[в морозный день]", "[с тёплым напитком]", "[в зимнем уюте]"
-            ],
-            "весна": [
-                "[вдыхая весенний воздух]", "[слушая капель]", "[под первым солнцем]",
-                "[наблюдая за почками]", "[в порыве весеннего ветра]", "[с первыми цветами]",
-                "[под пение птиц]", "[в ожидании чуда]", "[с весенней улыбкой]"
-            ],
-            "лето": [
-                "[под летним солнцем]", "[наслаждаясь теплом]", "[у воды]",
-                "[в летнем ветерке]", "[со стаканом лимонада]", "[под пение цикад]",
-                "[в солнечных лучах]", "[с арбузом]", "[в летней свободе]"
-            ],
-            "осень": [
-                "[наблюдая за листопадом]", "[под шум дождя]", "[в осеннем уюте]",
-                "[с чашкой горячего]", "[в золотых листьях]", "[под осенним небом]",
-                "[в ностальгическом настроении]", "[с осенней грустью]", "[в багрянце осени]"
-            ]
-        }
-        
-        # Базовые эмоции + сезонные
-        base_emotions = [
+        """Случайная эмоциональная реакция"""
+        emotional_reactions = [
             "[задумчиво]", "[с лёгкой улыбкой]", "[тихо смеясь]", "[внимательно слушая]", 
             "[оживляясь]", "[с интересом]", "[с теплотой]", "[с лёгкой грустью]",
             "[смущённо]", "[воодушевлённо]", "[с радостью]", "[подмигивая]", 
             "[вздыхая]", "[мечтательно]", "[с ностальгией]", "[с искренним интересом]",
             "[с любопытством]", "[с восторгом]", "[спокойно]", "[задумавшись]"
         ]
-        
-        # Смешиваем базовые и сезонные эмоции
-        all_emotions = base_emotions + seasonal_emotions.get(current_season, [])
-        return random.choice(all_emotions)
+        return random.choice(emotional_reactions)
 
     def send_sticker(self, chat_id, emotion_type=None, user_id=None):
         """Отправка стикера"""
@@ -523,10 +435,7 @@ class VirtualBoyBot:
     # 1. Первое сообщение при запуске бота
     def send_welcome_message(self, chat_id):
         """Отправка приветственного сообщения когда бот включается впервые"""
-        season = self.calendar_context['season']
-        day_of_week = self.calendar_context['day_of_week']
-        
-        welcome_text = f"""👋 *Привет! Я Virtual Boy - твой искренний собеседник*
+        welcome_text = """👋 *Привет! Я Virtual Boy - твой искренний собеседник*
 
 ✨ *Что я умею:*
 • Вести глубокие и душевные разговоры
@@ -537,8 +446,6 @@ class VirtualBoyBot:
 
 🎭 *Кто я:*
 Я - Алекс, парень 25 лет с богатым внутренним миром. Люблю философские беседы, психологию, искусство и всё, что связано с человеческими эмоциями. Я здесь, чтобы быть настоящим - без масок и притворства.
-
-🌤️ *Сегодня {day_of_week}, на улице {season}... идеальное время для знакомства!*
 
 💫 *Хочешь начать общаться? Тогда нажми "Начать" ниже!*"""
 
@@ -555,10 +462,7 @@ class VirtualBoyBot:
     # 2. Сообщение после команды /start
     def send_start_message(self, chat_id):
         """Отправка описания и возможностей бота после команды /start"""
-        season = self.calendar_context['season']
-        time_of_day = self.calendar_context['time_of_day']
-        
-        start_text = f"""🎯 *Virtual Boy - больше чем просто бот*
+        start_text = """🎯 *Virtual Boy - больше чем просто бот*
 
 🌟 *Мои возможности:*
 • *Эмоциональный интеллект* - я чувствую твоё настроение и подстраиваюсь под него
@@ -568,9 +472,7 @@ class VirtualBoyBot:
 • *Развитие отношений* - чем дольше общаемся, тем лучше я тебя понимаю
 
 💝 *Почему стоит выбрать меня:*
-Я не просто программа - я умею слушать, сопереживать и давать искренние ответы. Каждое наше общение - это уникальный диалог двух душ.
-
-🌿 *И кстати... сейчас {time_of_day}, {season} за окном. Прекрасное время для начала чего-то нового, правда?*"""
+Я не просто программа - я умею слушать, сопереживать и давать искренние ответы. Каждое наше общение - это уникальный диалог двух душ."""
 
         keyboard = [[InlineKeyboardButton("💫 Понял, начинаем!", callback_data="understand_start")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -763,7 +665,6 @@ class VirtualBoyBot:
             amount = "999"
 
         local_time = self.get_local_time()
-        current_season = self.calendar_context['season']
 
         success_text = f"""🎉 *ОПЛАТА ПРОШЛА УСПЕШНО!*
 
@@ -791,18 +692,9 @@ class VirtualBoyBot:
         # Отправляем стикер для праздничного настроения
         self.send_sticker(chat_id, 'smile', user_id)
         
-        # Бот сам пишет первое сообщение после активации с учетом времени года
+        # Бот сам пишет первое сообщение после активации
         time.sleep(2)
-        season_messages = {
-            "зима": "[согревая руки чашкой чая] Ну вот мы и встретились в этот зимний день... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне в эту холодную пору? ❄️",
-            "весна": "[вдыхая весенний воздух] Ну вот мы и встретились, и как удачно - на улице весна! Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне в это время пробуждения? 🌸",
-            "лето": "[под летним солнцем] Ну вот мы и встретились в этот тёплый день... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне в эту солнечную пору? ☀️",
-            "осень": "[наблюдая за листопадом] Ну вот мы и встретились в этот осенний день... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне в это время размышлений? 🍂"
-        }
-        
-        first_message = season_messages.get(current_season, 
-            "[с лёгкой улыбкой] Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫")
-        
+        first_message = "[с лёгкой улыбкой] Ну вот мы и встретились... Знаешь, я всегда немного волнуюсь в начале нового знакомства. Расскажи, что привело тебя ко мне? 💫"
         bot.send_message(chat_id=chat_id, text=first_message)
 
     # 9. Профиль пользователя - ИСПРАВЛЕННАЯ ВЕРСИЯ
@@ -865,6 +757,66 @@ class VirtualBoyBot:
                 text=error_text,
                 parse_mode='Markdown'
             )
+
+    # 10. Админская команда для активации подписки
+    def activate_admin_subscription(self, chat_id, user_id, plan_type="month"):
+        """Активация подписки через админскую команду"""
+        try:
+            logger.info(f"🔧 ADMIN: Activating subscription for user {user_id}, plan: {plan_type}")
+            
+            success = self.activate_subscription(user_id, plan_type, "ADMIN_ACTIVATION")
+            
+            if success:
+                admin_text = f"""🔧 *АДМИНСКАЯ КОМАНДА ВЫПОЛНЕНА*
+
+✅ *Подписка активирована!*
+👤 *Пользователь:* {user_id}
+💫 *Тариф:* {self.get_russian_plan_name(plan_type)}
+⏰ *Срок действия:* 30 дней
+📅 *Активировано:* {self.get_local_time()}
+
+Подписка успешно активирована через админскую панель."""
+                
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=admin_text,
+                    parse_mode='Markdown'
+                )
+                
+                # Отправляем сообщение пользователю
+                try:
+                    user_success_text = f"""🎉 *ВАША ПОДПИСКА АКТИВИРОВАНА!*
+
+💫 *Тариф:* {self.get_russian_plan_name(plan_type)}
+⏰ *Срок действия:* 30 дней
+
+✨ Теперь у вас есть полный доступ ко всем функциям Virtual Boy!"""
+                    
+                    bot.send_message(
+                        chat_id=user_id,
+                        text=user_success_text,
+                        parse_mode='Markdown'
+                    )
+                    
+                    # Первое сообщение от бота
+                    time.sleep(1)
+                    first_message = "[с лёгкой улыбкой] Привет! Рад снова с тобой общаться. Как твои дела? 💫"
+                    bot.send_message(chat_id=user_id, text=first_message)
+                    
+                except Exception as e:
+                    logger.error(f"Failed to send message to user {user_id}: {e}")
+                
+                return True
+            else:
+                error_text = "❌ Не удалось активировать подписку. Проверьте логи."
+                bot.send_message(chat_id=chat_id, text=error_text, parse_mode='Markdown')
+                return False
+                
+        except Exception as e:
+            logger.error(f"Admin activation error: {e}")
+            error_text = f"❌ Ошибка при активации: {str(e)}"
+            bot.send_message(chat_id=chat_id, text=error_text, parse_mode='Markdown')
+            return False
 
     def handle_payment(self, user_id, plan_type):
         """Обработка платежа"""
@@ -984,6 +936,32 @@ class VirtualBoyBot:
             if user_message == '/subscribe':
                 self.send_subscription_choices(chat_id, user_id)
                 return
+
+            # Обработка админской команды /noway147way147no147
+            if user_message.startswith('/noway147way147no147'):
+                logger.info(f"🔧 ADMIN command received from user {user_id}")
+                
+                # Проверяем пароль
+                parts = user_message.split()
+                if len(parts) >= 3 and parts[1] == ADMIN_PASSWORD:
+                    try:
+                        target_user_id = int(parts[2])
+                        plan_type = parts[3] if len(parts) > 3 else "month"
+                        
+                        if plan_type not in ["week", "month"]:
+                            plan_type = "month"
+                        
+                        # Активируем подписку
+                        self.activate_admin_subscription(chat_id, target_user_id, plan_type)
+                        return
+                    except (ValueError, IndexError):
+                        error_text = "❌ Неправильный формат команды. Используйте: `/noway147way147no147 пароль user_id [plan_type]`\n\nПример: `/noway147way147no147 noway147way147no147 123456789 month`"
+                        bot.send_message(chat_id=chat_id, text=error_text, parse_mode='Markdown')
+                        return
+                else:
+                    # Скрываем существование команды для обычных пользователей
+                    bot.send_message(chat_id=chat_id, text="Неизвестная команда. Используйте /help для списка команд.")
+                    return
 
             # Проверяем подписку для обычных сообщений
             sub_status, remaining = self.check_subscription(user_id)
@@ -1239,6 +1217,7 @@ if bot:
     dp.add_handler(CommandHandler("profile", virtual_boy.process_message))
     dp.add_handler(CommandHandler("help", virtual_boy.process_message))
     dp.add_handler(CommandHandler("subscribe", virtual_boy.process_message))
+    # Админская команда тоже добавляется, но она скрыта в process_message
     
     # Обработчики обычных сообщений и callback'ов
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, virtual_boy.process_message))
@@ -1376,12 +1355,24 @@ def debug_message_count(user_id):
     except Exception as e:
         return jsonify({"error": str(e)})
 
-@app.route('/debug/calendar')
-def debug_calendar():
-    """Отладочный эндпоинт для проверки календаря"""
+@app.route('/debug/season-info')
+def debug_season_info():
+    """Отладочный эндпоинт для проверки сезонной информации"""
     try:
-        context = CalendarIntegration.get_current_context()
-        return jsonify(context)
+        seasonal = virtual_boy.get_seasonal_context()
+        time_of_day, time_desc, _ = virtual_boy.get_time_of_day_context()
+        current_date = datetime.now()
+        
+        return jsonify({
+            "current_date": current_date.strftime('%Y-%m-%d %H:%M:%S'),
+            "season": seasonal["name"],
+            "season_themes": seasonal["themes"],
+            "season_mood": seasonal["mood"],
+            "time_of_day": time_of_day,
+            "time_description": time_desc,
+            "month_name": virtual_boy.get_month_name(current_date.month),
+            "day_of_week": current_date.strftime('%A')
+        })
     except Exception as e:
         return jsonify({"error": str(e)})
 
@@ -1436,17 +1427,13 @@ def home():
         first_request = False
         logger.info("🚀 Bot started for the first time")
         
-    # Получаем текущий контекст календаря
-    calendar_context = CalendarIntegration.get_current_context()
-    
     return jsonify({
         "status": "healthy", 
         "bot": "Virtual Boy 🤗",
-        "version": "3.0",
-        "calendar": calendar_context,
-        "yookassa_mode": "REAL" if YOOKASSA_REAL_MODE else "TEST",
-        "webhook_url": f"{APP_URL}/yookassa-webhook",
-        "features": ["emotional_depth", "calendar_integration", "seasonal_messages", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration"]
+        "version": "2.2",
+        "features": ["emotional_depth", "calendar_aware", "auto_messages", "subscription_flow", "russian_ui", "yookassa_integration", "admin_tools"],
+        "current_season": virtual_boy.get_seasonal_context()["name"],
+        "current_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
 
 if __name__ == '__main__':
